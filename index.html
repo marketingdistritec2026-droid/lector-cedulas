@@ -358,9 +358,14 @@ const CED = (() => {
        los 9 primeros van en el campo de documento, la posición de control
        queda en '<' y el resto del número + su dígito de control sigue en el
        campo opcional. Así viene el NUIP de 10 dígitos de la cédula digital. */
+    /* Cédula digital colombiana: la línea 1 trae el serial de la tarjeta y
+       el número de cédula (NUIP) va en el campo opcional de la línea 2,
+       justo después de "COL". Se prefiere ese campo. */
     let numero = '';
+    const nuip = toDigit(opt2.split('<')[0]).replace(/^0+/, '');
+    if (/^\d{6,10}$/.test(nuip)) numero = nuip;
     const fillerAt14 = /[<KLC]/.test(l1[14]);
-    if (fillerAt14) {
+    if (!numero && fillerAt14) {
       const ext = toDigit(opt1.split(/<|K(?=<|K|$)/)[0]);
       if (/^\d{2,}$/.test(ext)) {
         const head = toDigit(docNum.replace(/</g, ''));
@@ -412,14 +417,13 @@ const CED = (() => {
   }
   function sampleMRZ() {
     const pad = (s, n) => (s + '<'.repeat(n)).slice(0, n);
-    const doc = '101234567';
-    const l1 = pad('ICCOL' + doc + '<' + '8' + cd('1012345678'), 30);
-    const birth = '880722', exp = '340722', opt2 = pad('', 11);
+    const serial = '100000001';
+    const l1 = pad('ICCOL' + serial + cd(serial) + '66001', 30);
+    const birth = '880722', exp = '340722', opt2 = pad('1234567890', 11);
     const body = birth + cd(birth) + 'M' + exp + cd(exp) + 'COL' + opt2;
     const comp = cd(l1.slice(5, 30) + birth + cd(birth) + exp + cd(exp) + opt2);
-    const l2 = body + comp;
     const l3 = pad('PRUEBA<MUESTRA<<CARLOS<ANDRES', 30);
-    return [l1, l2, l3].join('\n');
+    return [l1, body + comp, l3].join('\n');
   }
 
   return { parsePDF417, parseMRZ, parseAny, edad, samplePDF417, sampleMRZ, cd };
