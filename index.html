@@ -307,6 +307,28 @@ const CED = (() => {
     return lines.map(l => (l + '<'.repeat(30)).slice(0, 30));
   }
 
+  /* Nombres de la línea 3, limpiando lo que el OCR suele confundir:
+     el relleno '<' leído como K, L, C o E, y números dentro de nombres. */
+  const toAlpha = s => s.replace(/0/g, 'O').replace(/1/g, 'I').replace(/5/g, 'S').replace(/8/g, 'B').replace(/2/g, 'Z').replace(/6/g, 'G');
+  function mrzNames(line) {
+    let s = toAlpha(line.toUpperCase()).replace(/[^A-Z<]/g, '<');
+    // Corta el relleno final: desde el primer '<' de la cola formada solo por < K L C E.
+    const tail = /[<KLCE]+$/.exec(s);
+    if (tail) {
+      const firstLt = tail[0].indexOf('<');
+      if (firstLt >= 0) s = s.slice(0, tail.index + firstLt);
+      else s = s.replace(/K+$/, '');
+    }
+    // Separador apellidos/nombres: '<<' (o '<K', 'K<', 'KK' mal leídos si no hay '<<').
+    let cut = s.indexOf('<<');
+    let sep = 2;
+    if (cut < 0) { const m = /<K|K<|KK/.exec(s); if (m) { cut = m.index; sep = 2; } }
+    const tok = part => part.split('<').filter(t => t.length > 1 || !/[KLCE]/.test(t)).filter(Boolean);
+    const sur = tok(cut >= 0 ? s.slice(0, cut) : s);
+    const giv = tok(cut >= 0 ? s.slice(cut + sep) : '');
+    return { sur, giv };
+  }
+
   function parseMRZ(text) {
     const L = normMRZ(text);
     if (!L) return null;
@@ -330,12 +352,28 @@ const CED = (() => {
     const nacimiento = year + '-' + birth.slice(2, 4) + '-' + birth.slice(4, 6);
     const vence = /^\d{6}$/.test(exp) ? '20' + exp.slice(0, 2) + '-' + exp.slice(2, 4) + '-' + exp.slice(4, 6) : '';
 
-    const cut = l3.indexOf('<<');
-    const sur = (cut >= 0 ? l3.slice(0, cut) : l3).split('<').filter(Boolean);
-    const giv = (cut >= 0 ? l3.slice(cut + 2) : '').split('<').filter(Boolean);
+    const { sur, giv } = mrzNames(l3);
 
-    const cands = [opt1, docNum, opt2].map(s => toDigit(s.replace(/</g, '')).replace(/^0+/, ''));
-    const numero = cands.find(s => /^\d{6,10}$/.test(s)) || '';
+    /* Número de documento. Regla ICAO para números de más de 9 caracteres:
+       los 9 primeros van en el campo de documento, la posición de control
+       queda en '<' y el resto del número + su dígito de control sigue en el
+       campo opcional. Así viene el NUIP de 10 dígitos de la cédula digital. */
+    let numero = '';
+    const fillerAt14 = /[<KLC]/.test(l1[14]);
+    if (fillerAt14) {
+      const ext = toDigit(opt1.split(/<|K(?=<|K|$)/)[0]);
+      if (/^\d{2,}$/.test(ext)) {
+        const head = toDigit(docNum.replace(/</g, ''));
+        const tail = ext.slice(0, -1);
+        const full = head + tail;
+        checks.documento = cd(head + tail) === ext.slice(-1) || cd(docNum + tail) === ext.slice(-1);
+        if (/^\d{6,12}$/.test(full)) numero = full.replace(/^0+/, '');
+      }
+    }
+    if (!numero) {
+      const cands = [docNum, opt1, opt2].map(s => toDigit(s.replace(/</g, '')).replace(/^0+/, ''));
+      numero = cands.find(s => /^\d{6,10}$/.test(s)) || '';
+    }
 
     const ok = Object.values(checks).filter(Boolean).length;
     return {
@@ -374,8 +412,8 @@ const CED = (() => {
   }
   function sampleMRZ() {
     const pad = (s, n) => (s + '<'.repeat(n)).slice(0, n);
-    const doc = pad('A12345678', 9);
-    const l1 = pad('ICCOL' + doc + cd(doc) + '1012345678', 30);
+    const doc = '101234567';
+    const l1 = pad('ICCOL' + doc + '<' + '8' + cd('1012345678'), 30);
     const birth = '880722', exp = '340722', opt2 = pad('', 11);
     const body = birth + cd(birth) + 'M' + exp + cd(exp) + 'COL' + opt2;
     const comp = cd(l1.slice(5, 30) + birth + cd(birth) + exp + cd(exp) + opt2);
