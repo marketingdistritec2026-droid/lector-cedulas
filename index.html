@@ -1,0 +1,672 @@
+<title>Lector de Cédulas Distritec</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: herramienta de mostrador — entrada a la izquierda, ficha de datos a la derecha, bitácora de la sesión abajo. */
+:root{
+  --bg:#F3F6F1; --surface:#FFFFFF; --sunk:#EAF0E6; --ink:#16201A; --muted:#5A695E; --line:#D6DFD3;
+  --accent:#4DCC00; --accent-ink:#2C7A00; --on-accent:#0E1A08;
+  --good:#2C7A00; --good-bg:#E3F5D6; --warn:#8A5300; --warn-bg:#FCEFD9; --bad:#B3261E; --bad-bg:#FBE3E1;
+  --f-display:"Sora",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1410; --surface:#162019; --sunk:#111913; --ink:#E6EEE5; --muted:#98A99B; --line:#283429;
+  --accent:#5FE014; --accent-ink:#86EC4A; --on-accent:#0B1406;
+  --good:#86EC4A; --good-bg:#1D3315; --warn:#F2B45A; --warn-bg:#3A2A10; --bad:#FF8A80; --bad-bg:#3D1916; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1410; --surface:#162019; --sunk:#111913; --ink:#E6EEE5; --muted:#98A99B; --line:#283429;
+  --accent:#5FE014; --accent-ink:#86EC4A; --on-accent:#0B1406;
+  --good:#86EC4A; --good-bg:#1D3315; --warn:#F2B45A; --warn-bg:#3A2A10; --bad:#FF8A80; --bad-bg:#3D1916; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:20px}
+h1,h2{font-family:var(--f-display);margin:0;text-wrap:balance}
+h1{font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-.02em}
+h2{font-size:1.05rem}
+.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink);font-weight:700;margin:0 0 6px}
+.lede{margin:6px 0 0;color:var(--muted);max-width:60ch}
+.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.privacy{display:inline-flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--surface)}
+.privacy::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+
+.tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:10px;margin-bottom:16px;flex-wrap:wrap}
+.tab{flex:1 1 auto;font:inherit;font-size:.88rem;font-weight:700;color:var(--muted);background:transparent;border:0;border-radius:7px;padding:8px 10px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .08)}
+.tab:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible,.drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+
+.drop{display:grid;place-items:center;text-align:center;gap:6px;border:2px dashed var(--line);border-radius:12px;padding:26px 16px;cursor:pointer;background:var(--sunk)}
+.drop:hover{border-color:var(--accent)}
+.drop strong{font-family:var(--f-display);font-size:1rem}
+.drop span{color:var(--muted);font-size:.86rem}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.preview{margin-top:12px;border-radius:10px;max-height:220px;width:100%;object-fit:contain;background:var(--sunk)}
+video{width:100%;border-radius:10px;background:#000;aspect-ratio:4/3;object-fit:cover;max-width:100%}
+
+textarea{width:100%;min-height:120px;font-family:var(--f-mono);font-size:.82rem;color:var(--ink);background:var(--sunk);
+  border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+.hint{color:var(--muted);font-size:.86rem;margin:0 0 10px}
+.status{font-size:.88rem;margin:10px 0 0;min-height:1.4em}
+.status.err{color:var(--bad)} .status.ok{color:var(--good)}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn{font:inherit;font-weight:700;font-size:.88rem;border-radius:9px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(.95)}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.types{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;display:grid;gap:8px;font-size:.86rem;color:var(--muted)}
+.types b{color:var(--ink)}
+
+/* Ficha */
+.card-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:.75rem;font-weight:700;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.chip.good{background:var(--good-bg);color:var(--good)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
+.numero{display:grid;gap:2px;padding:14px 16px;border-radius:12px;background:var(--sunk);margin-bottom:14px}
+.numero label{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.numero input{font-family:var(--f-mono);font-size:clamp(1.4rem,4.5vw,1.9rem);letter-spacing:.04em;border:0;background:transparent;color:var(--ink);padding:0;width:100%;font-variant-numeric:tabular-nums}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+@media (max-width:460px){.fields{grid-template-columns:minmax(0,1fr)}}
+.f{display:grid;gap:3px;min-width:0}
+.f label{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.f input{font:inherit;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--line);padding:4px 0;width:100%;min-width:0}
+.f input:focus{border-bottom-color:var(--accent)}
+.f input[readonly]{color:var(--muted)}
+.checks{margin-top:14px;font-size:.84rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px}
+.checks .y{color:var(--good)} .checks .n{color:var(--bad)}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;color:var(--muted);font-size:.86rem}
+pre{font-family:var(--f-mono);font-size:.74rem;background:var(--sunk);padding:10px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:180px;margin:8px 0 0}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:.86rem;color:var(--muted)}
+
+/* Sesión */
+.session-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.tablebox{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.mono{font-family:var(--f-mono)}
+tr.sel td{background:var(--sunk)}
+tbody tr{cursor:pointer}
+.empty{color:var(--muted);font-size:.9rem;padding:14px 4px}
+.legal{font-size:.82rem;color:var(--muted);max-width:75ch;margin:0}
+.copybox{position:fixed;left:-9999px;top:0}
+@media (prefers-reduced-motion:no-preference){.flash{animation:flash .9s ease-out}@keyframes flash{from{box-shadow:0 0 0 3px var(--accent)}to{box-shadow:0 0 0 0 transparent}}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Distritec · Desarrollo</p>
+      <h1>Lector de cédulas</h1>
+      <p class="lede">Lee el respaldo de la cédula colombiana y deja los datos listos para el estudio de crédito, sin digitar.</p>
+    </div>
+    <span class="privacy">Todo se procesa en este dispositivo. No se envía ni se guarda nada.</span>
+  </header>
+
+  <main class="grid">
+    <section class="panel" aria-label="Captura">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="t-foto" aria-selected="true" data-tab="foto">Foto</button>
+        <button class="tab" role="tab" id="t-lector" aria-selected="false" data-tab="lector">Pistola lectora</button>
+        <button class="tab" role="tab" id="t-camara" aria-selected="false" data-tab="camara">Cámara en vivo</button>
+        <button class="tab" role="tab" id="t-texto" aria-selected="false" data-tab="texto">Pegar texto</button>
+      </div>
+
+      <div data-pane="foto">
+        <label class="drop">
+          <input type="file" id="fileIn" accept="image/*" capture="environment">
+          <strong>Tomar o subir foto del respaldo</strong>
+          <span>En el celular abre la cámara. Encuadra el código de barras o las 3 líneas de abajo, con buena luz y sin reflejos.</span>
+        </label>
+        <img id="preview" class="preview" alt="Foto cargada" hidden>
+        <p class="status" id="fotoStatus"></p>
+        <div class="row"><button class="btn" id="ocrBtn" hidden>Leer las 3 líneas (cédula digital)</button></div>
+      </div>
+
+      <div data-pane="lector" hidden>
+        <p class="hint">Conecta una pistola lectora 2D compatible con PDF417. Haz clic en el recuadro y dispara sobre el código del respaldo.</p>
+        <textarea id="scanIn" spellcheck="false" placeholder="Esperando lectura…"></textarea>
+        <p class="status" id="scanStatus"></p>
+      </div>
+
+      <div data-pane="camara" hidden>
+        <video id="video" muted playsinline></video>
+        <div class="row">
+          <button class="btn primary" id="camStart">Encender cámara</button>
+          <button class="btn" id="camStop" disabled>Detener</button>
+        </div>
+        <p class="status" id="camStatus"></p>
+      </div>
+
+      <div data-pane="texto" hidden>
+        <p class="hint">Pega los datos crudos del código o las 3 líneas de la zona de lectura de la cédula digital.</p>
+        <textarea id="pasteIn" spellcheck="false"></textarea>
+        <div class="row">
+          <button class="btn primary" id="parseBtn">Interpretar</button>
+          <button class="btn ghost" id="demoMrz">Probar con cédula digital de ejemplo</button>
+        </div>
+        <p class="status" id="pasteStatus"></p>
+      </div>
+
+      <div class="types">
+        <div><b>Cédula amarilla con hologramas:</b> código de barras PDF417 del respaldo.</div>
+        <div><b>Cédula digital:</b> 3 líneas de letras y números (zona MRZ) del respaldo.</div>
+      </div>
+    </section>
+
+    <section class="panel" id="card" aria-live="polite" aria-label="Datos leídos">
+      <div class="card-head">
+        <h2 id="cardTitle">Datos de la cédula</h2>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="numero">
+        <label for="f-numero">Número de cédula</label>
+        <input id="f-numero" data-k="numero" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="fields">
+        <div class="f"><label for="f-apellido1">Primer apellido</label><input id="f-apellido1" data-k="apellido1" autocomplete="off"></div>
+        <div class="f"><label for="f-apellido2">Segundo apellido</label><input id="f-apellido2" data-k="apellido2" autocomplete="off"></div>
+        <div class="f"><label for="f-nombre1">Primer nombre</label><input id="f-nombre1" data-k="nombre1" autocomplete="off"></div>
+        <div class="f"><label for="f-nombre2">Segundo nombre</label><input id="f-nombre2" data-k="nombre2" autocomplete="off"></div>
+        <div class="f"><label for="f-nacimiento">Fecha de nacimiento</label><input id="f-nacimiento" data-k="nacimiento" placeholder="AAAA-MM-DD" autocomplete="off"></div>
+        <div class="f"><label for="f-edad">Edad</label><input id="f-edad" readonly></div>
+        <div class="f"><label for="f-sexo">Sexo</label><input id="f-sexo" data-k="sexo" autocomplete="off"></div>
+        <div class="f"><label for="f-rh">RH</label><input id="f-rh" data-k="rh" autocomplete="off"></div>
+        <div class="f" id="venceBox" hidden><label for="f-vence">Vence</label><input id="f-vence" data-k="vence" autocomplete="off"></div>
+      </div>
+      <div class="checks" id="checks" hidden></div>
+      <div class="row">
+        <button class="btn primary" id="copyOne">Copiar datos</button>
+        <label class="toggle"><input type="checkbox" id="incRh"> Incluir RH al copiar</label>
+      </div>
+      <p class="status" id="cardStatus"></p>
+      <details><summary>Datos crudos leídos</summary><pre id="raw"></pre></details>
+    </section>
+  </main>
+
+  <section class="panel" aria-label="Lecturas de la sesión">
+    <div class="session-head">
+      <h2>Lecturas de esta sesión</h2>
+      <div class="row" style="margin:0">
+        <button class="btn" id="copyAll" disabled>Copiar tabla para Excel</button>
+        <button class="btn ghost" id="clearAll" disabled>Borrar lista</button>
+      </div>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>Hora</th><th>Cédula</th><th>Nombre completo</th><th>Edad</th><th>Tipo</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="empty">Aún no hay lecturas. Cada cédula que leas aparece aquí; la lista se borra al cerrar la página.</p>
+  </section>
+
+  <p class="legal">Antes de leer la cédula, pide la autorización de tratamiento de datos del cliente (Ley 1581 de 2012). El RH es un dato sensible: por eso no se copia a menos que lo actives.</p>
+</div>
+<textarea class="copybox" id="copybox" aria-hidden="true" tabindex="-1"></textarea>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+/* Parsers de cédula colombiana. Sin dependencias. */
+const CED = (() => {
+  const DATE_RE = /([MF])((?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01]))/;
+
+  function clean(s) {
+    return (s || '')
+      .replace(/[\x00-\x1F\x7F]/g, ' ')
+      .replace(/[^A-Za-zÑñÁÉÍÓÚÜáéíóúü \-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+  const isName = s => /^[A-ZÑÁÉÍÓÚÜ][A-ZÑÁÉÍÓÚÜ \-]*$/.test(s || '');
+  function parseRH(s) {
+    const m = /(AB|A|B|O)\s?([+-])/.exec(s || '');
+    return m ? m[1] + m[2] : '';
+  }
+  const fmtDate = d => d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8);
+
+  /* Cédula amarilla con hologramas: PDF417 del respaldo.
+     1) Ubica el ancla sexo+fecha (p. ej. "F19950314").
+     2) Intenta el diseño de campos de ancho fijo, corrigiendo el corrimiento
+        que agregan algunos lectores al inicio.
+     3) Si el lector borró los separadores, cae a un modo heurístico. */
+  function parsePDF417(raw) {
+    if (!raw) return null;
+    const m = DATE_RE.exec(raw);
+    if (!m) return null;
+    const idx = m.index;
+    const sexo = m[1];
+    const nacimiento = fmtDate(m[2]);
+    const rh = parseRH(raw.slice(idx + 9, idx + 30));
+    const shift = idx - 151;
+    let rec = null;
+
+    if (shift >= -48) {
+      const g = (a, b) => raw.slice(a + shift, b + shift);
+      const num = g(48, 58).replace(/\D/g, '').replace(/^0+/, '');
+      const a1 = clean(g(58, 81)), a2 = clean(g(81, 104));
+      const n1 = clean(g(104, 127)), n2 = clean(g(127, 150));
+      const namesZone = g(58, 150).replace(/\x00/g, '');
+      if (/^\d{5,10}$/.test(num) && isName(a1) && isName(n1) && !/\d/.test(namesZone)) {
+        rec = { numero: num, apellido1: a1, apellido2: a2, nombre1: n1, nombre2: n2, confianza: 'alta' };
+      }
+    }
+
+    if (!rec) {
+      const pre = raw.slice(0, idx).replace(/\d+$/, '');
+      const dm = /(\d{5,})(?=\D*$)/.exec(pre);
+      if (!dm) return null;
+      const num = dm[1].slice(-10).replace(/^0+/, '');
+      const rest = pre.slice(dm.index + dm[1].length);
+      const parts = rest.split(/[\x00-\x1F]+|\s{2,}/).map(clean).filter(isName);
+      const r = { numero: num, apellido1: '', apellido2: '', nombre1: '', nombre2: '' };
+      if (parts.length >= 4) { [r.apellido1, r.apellido2, r.nombre1] = parts; r.nombre2 = parts.slice(3).join(' '); r.confianza = 'media'; }
+      else if (parts.length === 3) { [r.apellido1, r.apellido2, r.nombre1] = parts; r.confianza = 'media'; }
+      else if (parts.length === 2) { [r.apellido1, r.nombre1] = parts; r.confianza = 'baja'; }
+      else { r.apellido1 = parts[0] || ''; r.confianza = 'baja'; }
+      if (!/^\d{5,10}$/.test(r.numero)) return null;
+      rec = r;
+    }
+    return Object.assign(rec, { tipo: 'pdf417', sexo, nacimiento, rh, vence: '', checks: null, crudo: raw });
+  }
+
+  /* Cédula digital: zona MRZ (formato TD1, 3 líneas de 30). */
+  const W = [7, 3, 1];
+  function cd(s) {
+    let t = 0;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      const v = c === '<' ? 0 : /\d/.test(c) ? +c : c.charCodeAt(0) - 55;
+      t += v * W[i % 3];
+    }
+    return String(t % 10);
+  }
+  const toDigit = s => (s || '').replace(/O|Q|D/g, '0').replace(/[IL]/g, '1').replace(/Z/g, '2').replace(/S/g, '5').replace(/B/g, '8').replace(/G/g, '6');
+
+  function normMRZ(text) {
+    const t = (text || '').toUpperCase().replace(/[«‹]/g, '<').replace(/[ \t]/g, '');
+    let lines = t.split(/\r?\n/).map(l => l.replace(/[^A-Z0-9<]/g, '')).filter(l => l.length >= 20);
+    if (lines.length === 1 && lines[0].length >= 85) {
+      const l = lines[0];
+      lines = [l.slice(0, 30), l.slice(30, 60), l.slice(60, 90)];
+    }
+    if (lines.length > 3) lines = lines.filter(l => l.includes('<')).slice(-3);
+    if (lines.length !== 3) return null;
+    return lines.map(l => (l + '<'.repeat(30)).slice(0, 30));
+  }
+
+  function parseMRZ(text) {
+    const L = normMRZ(text);
+    if (!L) return null;
+    const [l1, l2, l3] = L;
+    if (!/^[IAC]/.test(l1)) return null;
+    const docNum = l1.slice(5, 14), docChk = toDigit(l1[14]), opt1 = l1.slice(15, 30);
+    const birth = toDigit(l2.slice(0, 6)), bChk = toDigit(l2[6]);
+    const sx = l2[7];
+    const exp = toDigit(l2.slice(8, 14)), eChk = toDigit(l2[14]);
+    const opt2 = l2.slice(18, 29), comp = toDigit(l2[29]);
+    if (!/^\d{6}$/.test(birth)) return null;
+    const checks = {
+      documento: cd(docNum) === docChk,
+      nacimiento: cd(birth) === bChk,
+      vencimiento: cd(exp) === eChk,
+      general: cd(l1.slice(5, 30) + birth + bChk + exp + eChk + opt2) === comp,
+    };
+    const nowYY = new Date().getFullYear() % 100;
+    const by = +birth.slice(0, 2);
+    const year = (by > nowYY ? 1900 : 2000) + by;
+    const nacimiento = year + '-' + birth.slice(2, 4) + '-' + birth.slice(4, 6);
+    const vence = /^\d{6}$/.test(exp) ? '20' + exp.slice(0, 2) + '-' + exp.slice(2, 4) + '-' + exp.slice(4, 6) : '';
+
+    const cut = l3.indexOf('<<');
+    const sur = (cut >= 0 ? l3.slice(0, cut) : l3).split('<').filter(Boolean);
+    const giv = (cut >= 0 ? l3.slice(cut + 2) : '').split('<').filter(Boolean);
+
+    const cands = [opt1, docNum, opt2].map(s => toDigit(s.replace(/</g, '')).replace(/^0+/, ''));
+    const numero = cands.find(s => /^\d{6,10}$/.test(s)) || '';
+
+    const ok = Object.values(checks).filter(Boolean).length;
+    return {
+      tipo: 'mrz', numero,
+      apellido1: sur[0] || '', apellido2: sur.slice(1).join(' '),
+      nombre1: giv[0] || '', nombre2: giv.slice(1).join(' '),
+      sexo: sx === 'M' || sx === 'F' ? sx : '',
+      nacimiento, rh: '', vence, checks,
+      confianza: ok === 4 ? 'alta' : ok >= 2 ? 'media' : 'baja',
+      crudo: L.join('\n'),
+    };
+  }
+
+  function parseAny(text) {
+    return parsePDF417(text) || parseMRZ(text);
+  }
+
+  function edad(fechaISO, hoy = new Date()) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fechaISO || '');
+    if (!m) return null;
+    let e = hoy.getFullYear() - +m[1];
+    const mm = hoy.getMonth() + 1, dd = hoy.getDate();
+    if (mm < +m[2] || (mm === +m[2] && dd < +m[3])) e--;
+    return e;
+  }
+
+  /* Datos de ejemplo ficticios para probar sin una cédula. */
+  function samplePDF417() {
+    const a = new Array(531).fill('\x00');
+    const put = (o, s) => { for (let i = 0; i < s.length; i++) a[o + i] = s[i]; };
+    put(0, '0384751926PubDSK_1');
+    put(48, '0012345678'); put(58, 'PRUEBA'); put(81, 'EJEMPLO');
+    put(104, 'MARIA'); put(127, 'JOSE'); put(150, '0F19950314');
+    put(160, '66001'); put(166, 'O+');
+    return a.join('');
+  }
+  function sampleMRZ() {
+    const pad = (s, n) => (s + '<'.repeat(n)).slice(0, n);
+    const doc = pad('A12345678', 9);
+    const l1 = pad('ICCOL' + doc + cd(doc) + '1012345678', 30);
+    const birth = '880722', exp = '340722', opt2 = pad('', 11);
+    const body = birth + cd(birth) + 'M' + exp + cd(exp) + 'COL' + opt2;
+    const comp = cd(l1.slice(5, 30) + birth + cd(birth) + exp + cd(exp) + opt2);
+    const l2 = body + comp;
+    const l3 = pad('PRUEBA<MUESTRA<<CARLOS<ANDRES', 30);
+    return [l1, l2, l3].join('\n');
+  }
+
+  return { parsePDF417, parseMRZ, parseAny, edad, samplePDF417, sampleMRZ, cd };
+})();
+
+</script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const TIPOS = { pdf417: 'Cédula amarilla', mrz: 'Cédula digital' };
+  const FIELDS = ['numero','apellido1','apellido2','nombre1','nombre2','nacimiento','sexo','rh','vence'];
+  let current = null;
+  const session = [];
+
+  /* ---------- Tabs ---------- */
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== t.dataset.tab);
+    if (t.dataset.tab === 'lector') $('scanIn').focus();
+    if (t.dataset.tab !== 'camara') stopCam();
+  }));
+
+  const setStatus = (id, msg, kind) => { const el = $(id); el.textContent = msg || ''; el.className = 'status' + (kind ? ' ' + kind : ''); };
+
+  /* ---------- Ficha ---------- */
+  function nombreCompleto(r) { return [r.nombre1, r.nombre2, r.apellido1, r.apellido2].filter(Boolean).join(' '); }
+
+  function render(rec, opts = {}) {
+    current = rec;
+    FIELDS.forEach(k => { const el = $('f-' + k); if (el) el.value = rec[k] || ''; });
+    $('venceBox').hidden = rec.tipo !== 'mrz';
+    updateEdad();
+    const chips = [];
+    if (opts.ejemplo) chips.push(['Ejemplo · datos ficticios', 'warn']);
+    chips.push([TIPOS[rec.tipo] || 'Código', '']);
+    const conf = { alta: ['Lectura confiable', 'good'], media: ['Revisa los nombres', 'warn'], baja: ['Revisa todos los campos', 'bad'] }[rec.confianza];
+    if (conf) chips.push(conf);
+    $('chips').innerHTML = '';
+    chips.forEach(([t, c]) => { const s = document.createElement('span'); s.className = 'chip ' + c; s.textContent = t; $('chips').appendChild(s); });
+
+    const ck = $('checks');
+    if (rec.checks) {
+      ck.hidden = false; ck.innerHTML = '';
+      const names = { documento: 'Documento', nacimiento: 'Nacimiento', vencimiento: 'Vencimiento', general: 'General' };
+      const lab = document.createElement('span'); lab.textContent = 'Dígitos de control:'; ck.appendChild(lab);
+      Object.entries(rec.checks).forEach(([k, v]) => { const s = document.createElement('span'); s.className = v ? 'y' : 'n'; s.textContent = names[k] + (v ? ' correcto' : ' no coincide'); ck.appendChild(s); });
+    } else ck.hidden = true;
+
+    $('raw').textContent = visibleRaw(rec.crudo || '');
+    setStatus('cardStatus', '');
+    if (!opts.ejemplo && !opts.sinAgregar) {
+      $('card').classList.remove('flash'); void $('card').offsetWidth; $('card').classList.add('flash');
+      addToSession(rec);
+    }
+  }
+
+  function visibleRaw(s) { return s.replace(/\x00+/g, m => '·'.repeat(Math.min(m.length, 3))).replace(/[\x01-\x08\x0B-\x1F]/g, '·'); }
+
+  function updateEdad() {
+    const e = CED.edad($('f-nacimiento').value);
+    $('f-edad').value = e == null ? '' : e + ' años';
+    const old = document.getElementById('chip-edad'); if (old) old.remove();
+    if (e != null && e < 18) {
+      const s = document.createElement('span'); s.id = 'chip-edad'; s.className = 'chip bad'; s.textContent = 'Menor de edad';
+      $('chips').appendChild(s);
+    }
+  }
+
+  FIELDS.forEach(k => {
+    const el = $('f-' + k); if (!el) return;
+    el.addEventListener('input', () => {
+      if (!current) return;
+      current[k] = el.value.trim().toUpperCase();
+      if (k === 'nacimiento') updateEdad();
+      renderRows();
+    });
+  });
+
+  function payload(r, incRh) {
+    const o = { cedula: r.numero, primer_apellido: r.apellido1, segundo_apellido: r.apellido2, primer_nombre: r.nombre1,
+      segundo_nombre: r.nombre2, fecha_nacimiento: r.nacimiento, edad: CED.edad(r.nacimiento), sexo: r.sexo, tipo_documento: TIPOS[r.tipo] };
+    if (r.vence) o.vence = r.vence;
+    if (incRh) o.rh = r.rh;
+    return o;
+  }
+
+  async function copyText(text, statusId) {
+    try { await navigator.clipboard.writeText(text); setStatus(statusId, 'Copiado.', 'ok'); }
+    catch (e) {
+      const box = $('copybox'); box.value = text; box.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+      setStatus(statusId, ok ? 'Copiado.' : 'No se pudo copiar automáticamente. Abre "Datos crudos" y copia a mano.', ok ? 'ok' : 'err');
+    }
+  }
+  $('copyOne').addEventListener('click', () => { if (current) copyText(JSON.stringify(payload(current, $('incRh').checked), null, 2), 'cardStatus'); });
+
+  /* ---------- Sesión ---------- */
+  function addToSession(rec) {
+    const i = session.findIndex(s => s.numero && s.numero === rec.numero);
+    rec.hora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    if (i >= 0) session.splice(i, 1);
+    session.unshift(rec);
+    renderRows();
+  }
+  function renderRows() {
+    const tb = $('rows'); tb.innerHTML = '';
+    session.forEach(r => {
+      const tr = document.createElement('tr'); if (r === current) tr.className = 'sel';
+      const e = CED.edad(r.nacimiento);
+      [[r.hora], [r.numero, 'mono'], [nombreCompleto(r)], [e == null ? '' : e], [TIPOS[r.tipo]]].forEach(([v, c]) => {
+        const td = document.createElement('td'); td.textContent = v ?? ''; if (c) td.className = c; tr.appendChild(td);
+      });
+      tr.addEventListener('click', () => { render(r, { sinAgregar: true }); renderRows(); });
+      tb.appendChild(tr);
+    });
+    $('empty').hidden = session.length > 0;
+    $('copyAll').disabled = $('clearAll').disabled = session.length === 0;
+  }
+  $('copyAll').addEventListener('click', () => {
+    const inc = $('incRh').checked;
+    const head = ['Cédula','Primer apellido','Segundo apellido','Primer nombre','Segundo nombre','Fecha nacimiento','Edad','Sexo','Tipo'].concat(inc ? ['RH'] : []);
+    const lines = session.map(r => { const p = payload(r, inc); return [p.cedula,p.primer_apellido,p.segundo_apellido,p.primer_nombre,p.segundo_nombre,p.fecha_nacimiento,p.edad ?? '',p.sexo,p.tipo_documento].concat(inc ? [p.rh] : []).join('\t'); });
+    copyText([head.join('\t')].concat(lines).join('\n'), 'cardStatus');
+  });
+  $('clearAll').addEventListener('click', () => { session.length = 0; renderRows(); });
+
+  /* ---------- Decodificación de imágenes ---------- */
+  const hasZX = typeof ZXing !== 'undefined';
+  let reader = null, hints = null;
+  if (hasZX) {
+    hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.PDF_417, ZXing.BarcodeFormat.QR_CODE]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
+  }
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  function drawScaled(img, maxDim, rot, contrast) {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const s = Math.min(1, maxDim / Math.max(w, h)) || 1;
+    const cw = Math.round(w * s), ch = Math.round(h * s);
+    const c = document.createElement('canvas');
+    const swap = rot % 180 !== 0;
+    c.width = swap ? ch : cw; c.height = swap ? cw : ch;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    if (contrast) x.filter = 'grayscale(1) contrast(1.8)';
+    x.translate(c.width / 2, c.height / 2); x.rotate(rot * Math.PI / 180);
+    x.drawImage(img, -cw / 2, -ch / 2, cw, ch);
+    return c;
+  }
+
+  async function decodeImage(img) {
+    if (!reader) return null;
+    const tries = [[1800,0,false],[2600,0,false],[1200,0,false],[1800,90,false],[1800,0,true],[2600,90,true]];
+    for (const [d, r, c] of tries) {
+      try {
+        const src = new ZXing.HTMLCanvasElementLuminanceSource(drawScaled(img, d, r, c));
+        const res = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src)), hints);
+        if (res) return res;
+      } catch (e) { /* sigue intentando */ }
+      await tick();
+    }
+    return null;
+  }
+
+  function handleText(text, statusId, fromQR) {
+    const rec = CED.parseAny(text);
+    if (rec) {
+      render(rec);
+      const msg = rec.confianza === 'alta' ? 'Cédula leída.' : 'Cédula leída. Revisa los campos marcados antes de usarlos.';
+      setStatus(statusId, msg, 'ok');
+      return true;
+    }
+    if (fromQR) {
+      $('raw').textContent = text;
+      setStatus(statusId, 'Leí un código QR, pero todavía no reconozco su formato. Lo dejé en "Datos crudos" para ajustarlo con cédulas reales. Prueba con las 3 líneas de abajo.', 'err');
+    } else {
+      setStatus(statusId, 'No reconozco estos datos como una cédula. Verifica que sea el respaldo y vuelve a intentar.', 'err');
+    }
+    return false;
+  }
+
+  let lastImg = null;
+  $('fileIn').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = async () => {
+      lastImg = img;
+      $('preview').src = url; $('preview').hidden = false;
+      $('ocrBtn').hidden = true;
+      if (!reader) { setStatus('fotoStatus', 'No cargó el decodificador de códigos. Revisa la conexión y recarga la página.', 'err'); $('ocrBtn').hidden = false; return; }
+      setStatus('fotoStatus', 'Buscando el código…');
+      const res = await decodeImage(img);
+      if (res) {
+        const isQR = res.getBarcodeFormat() === ZXing.BarcodeFormat.QR_CODE;
+        if (!handleText(res.getText(), 'fotoStatus', isQR)) $('ocrBtn').hidden = false;
+      } else {
+        setStatus('fotoStatus', 'No encontré un código de barras. Si es cédula digital, lee las 3 líneas. Si es amarilla, toma la foto más cerca y sin reflejos.', 'err');
+        $('ocrBtn').hidden = false;
+      }
+      e.target.value = '';
+    };
+    img.onerror = () => setStatus('fotoStatus', 'No pude abrir esa imagen. Usa una foto JPG o PNG.', 'err');
+    img.src = url;
+  });
+
+  /* ---------- OCR de la zona MRZ (cédula digital) ---------- */
+  function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.appendChild(s); }); }
+  const timeout = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
+
+  $('ocrBtn').addEventListener('click', async () => {
+    if (!lastImg) return;
+    $('ocrBtn').disabled = true;
+    setStatus('fotoStatus', 'Leyendo las 3 líneas… la primera vez puede tardar unos segundos.');
+    try {
+      if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+      const worker = await Promise.race([Tesseract.createWorker('eng'), timeout(25000)]);
+      await worker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<' });
+      // Recorta la franja inferior, donde está la zona MRZ.
+      const full = drawScaled(lastImg, 2000, 0, true);
+      const c = document.createElement('canvas');
+      const y0 = Math.round(full.height * 0.55);
+      c.width = full.width; c.height = full.height - y0;
+      c.getContext('2d').drawImage(full, 0, y0, full.width, c.height, 0, 0, full.width, c.height);
+      let { data } = await worker.recognize(c);
+      let ok = handleText(data.text, 'fotoStatus', false);
+      if (!ok) { ({ data } = await worker.recognize(full)); ok = handleText(data.text, 'fotoStatus', false); }
+      await worker.terminate();
+      if (!ok) { $('raw').textContent = data.text; setStatus('fotoStatus', 'No logré leer las 3 líneas. Toma la foto de frente, más cerca y sin sombras.', 'err'); }
+    } catch (err) {
+      setStatus('fotoStatus', 'La lectura de las 3 líneas no está disponible en esta vista. Funciona al publicar la página en un servidor propio. Mientras tanto, usa "Pegar texto".', 'err');
+    } finally { $('ocrBtn').disabled = false; }
+  });
+
+  /* ---------- Pistola lectora (entra como teclado) ---------- */
+  let scanTimer = null;
+  $('scanIn').addEventListener('input', () => {
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(() => {
+      const v = $('scanIn').value; if (v.trim().length < 20) return;
+      if (handleText(v, 'scanStatus', false)) { $('scanIn').value = ''; $('scanIn').placeholder = 'Lista para la siguiente cédula…'; }
+    }, 400);
+  });
+
+  /* ---------- Pegar texto ---------- */
+  $('parseBtn').addEventListener('click', () => handleText($('pasteIn').value, 'pasteStatus', false));
+  $('demoMrz').addEventListener('click', () => {
+    $('pasteIn').value = CED.sampleMRZ();
+    const r = CED.parseMRZ($('pasteIn').value);
+    render(r, { ejemplo: true });
+    setStatus('pasteStatus', 'Ejemplo cargado con datos ficticios.', 'ok');
+  });
+
+  /* ---------- Cámara en vivo ---------- */
+  let camReader = null;
+  async function startCam() {
+    setStatus('camStatus', '');
+    if (!hasZX || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('camStatus', 'Este navegador no permite la cámara en vivo. Usa la pestaña Foto.', 'err'); return;
+    }
+    try {
+      camReader = new ZXing.BrowserMultiFormatReader(hints, 300);
+      $('camStart').disabled = true; $('camStop').disabled = false;
+      setStatus('camStatus', 'Apunta al código del respaldo y mantén quieto el celular.');
+      await camReader.decodeFromConstraints({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } }, $('video'), (res) => {
+        if (res) {
+          const isQR = res.getBarcodeFormat() === ZXing.BarcodeFormat.QR_CODE;
+          if (handleText(res.getText(), 'camStatus', isQR)) stopCam();
+        }
+      });
+    } catch (err) {
+      stopCam();
+      setStatus('camStatus', 'La cámara en vivo no está permitida en esta vista. Usa la pestaña Foto, que abre la cámara del celular, o publica la página en un servidor propio.', 'err');
+    }
+  }
+  function stopCam() {
+    if (camReader) { try { camReader.reset(); } catch (_) {} camReader = null; }
+    $('camStart').disabled = false; $('camStop').disabled = true;
+  }
+  $('camStart').addEventListener('click', startCam);
+  $('camStop').addEventListener('click', () => { stopCam(); setStatus('camStatus', ''); });
+
+  /* ---------- Estado inicial: ejemplo ---------- */
+  render(CED.parsePDF417(CED.samplePDF417()), { ejemplo: true });
+  renderRows();
+})();
+</script>
