@@ -1,180 +1,247 @@
 <title>Lector de Cédulas Distritec</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
 <style>
-/* Layout: herramienta de mostrador — entrada a la izquierda, ficha de datos a la derecha, bitácora de la sesión abajo. */
+/* Layout: app de mostrador para el asesor — banda de marca arriba, pasos numerados (es un proceso real), una tarjeta de trabajo por paso. */
 :root{
-  --bg:#F3F6F1; --surface:#FFFFFF; --sunk:#EAF0E6; --ink:#16201A; --muted:#5A695E; --line:#D6DFD3;
-  --accent:#4DCC00; --accent-ink:#2C7A00; --on-accent:#0E1A08;
-  --good:#2C7A00; --good-bg:#E3F5D6; --warn:#8A5300; --warn-bg:#FCEFD9; --bad:#B3261E; --bad-bg:#FBE3E1;
-  --f-display:"Sora",ui-sans-serif,system-ui,sans-serif;
-  --f-body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif;
+  --brand:#4DCC00; --brand-deep:#2C7A00; --band:#FFFFFF; --band-ink:#14200F; --on-brand:#0B1606;
+  --bg:#F2F6EF; --surface:#FFFFFF; --sunk:#E9F0E4; --ink:#14200F; --muted:#5A6A55; --line:#D5E0CF; --paper:#FFFFFF; --paper-ink:#111111;
+  --good:#2C7A00; --good-bg:#E2F5D4; --warn:#8A5300; --warn-bg:#FCEFD9; --bad:#B3261E; --bad-bg:#FBE3E1;
+  --f-display:"Poppins",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Poppins",ui-sans-serif,system-ui,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0E1410; --surface:#162019; --sunk:#111913; --ink:#E6EEE5; --muted:#98A99B; --line:#283429;
-  --accent:#5FE014; --accent-ink:#86EC4A; --on-accent:#0B1406;
-  --good:#86EC4A; --good-bg:#1D3315; --warn:#F2B45A; --warn-bg:#3A2A10; --bad:#FF8A80; --bad-bg:#3D1916; color-scheme:dark}}
+  --brand-deep:#7BEA3C; --bg:#0C130A; --surface:#141F11; --sunk:#0F180D; --ink:#E5EFE0; --muted:#97A991; --line:#25331F;
+  --good:#86EC4A; --good-bg:#1B3213; --warn:#F2B45A; --warn-bg:#3A2A10; --bad:#FF8A80; --bad-bg:#3D1916; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0E1410; --surface:#162019; --sunk:#111913; --ink:#E6EEE5; --muted:#98A99B; --line:#283429;
-  --accent:#5FE014; --accent-ink:#86EC4A; --on-accent:#0B1406;
-  --good:#86EC4A; --good-bg:#1D3315; --warn:#F2B45A; --warn-bg:#3A2A10; --bad:#FF8A80; --bad-bg:#3D1916; color-scheme:dark}
+  --brand-deep:#7BEA3C; --bg:#0C130A; --surface:#141F11; --sunk:#0F180D; --ink:#E5EFE0; --muted:#97A991; --line:#25331F;
+  --good:#86EC4A; --good-bg:#1B3213; --warn:#F2B45A; --warn-bg:#3A2A10; --bad:#FF8A80; --bad-bg:#3D1916; color-scheme:dark}
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
-.wrap{max-width:1120px;margin:0 auto;padding-block:28px 48px;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  display:grid;gap:20px}
-h1,h2{font-family:var(--f-display);margin:0;text-wrap:balance}
-h1{font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-.02em}
-h2{font-size:1.05rem}
-.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink);font-weight:700;margin:0 0 6px}
-.lede{margin:6px 0 0;color:var(--muted);max-width:60ch}
-.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
-.privacy{display:inline-flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted);
-  border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--surface)}
-.privacy::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--band)}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+button{font:inherit}
 
-.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px;align-items:start}
-@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+/* Banda de marca */
+.band{background:var(--band);color:var(--band-ink);position:sticky;top:env(safe-area-inset-top,0px);z-index:5;border-bottom:3px solid var(--brand);box-shadow:0 1px 8px rgb(0 0 0 / .06)}
+.band-in{max-width:880px;margin:0 auto;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{height:40px;width:auto;display:block}
+.wordmark{font-family:var(--f-display);font-weight:800;font-size:1.45rem;letter-spacing:-.04em;color:#FFFFFF;line-height:1}
+.wordmark i{font-style:normal;color:var(--brand)}
+.app-name{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#2C7A00;border-left:1px solid #D5E0CF;padding-left:12px;font-weight:700}
+.who{display:flex;align-items:center;gap:8px;background:#F2F6EF;border:1px solid #D5E0CF;color:var(--band-ink);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:.85rem;max-width:100%}
+.who b{color:#2C7A00}
+.who span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:10px;margin-bottom:16px;flex-wrap:wrap}
-.tab{flex:1 1 auto;font:inherit;font-size:.88rem;font-weight:700;color:var(--muted);background:transparent;border:0;border-radius:7px;padding:8px 10px;cursor:pointer}
-.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .08)}
-.tab:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible,.drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+/* Pasos */
+.steps{max-width:880px;margin:0 auto;padding-block:18px 6px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.steps ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.steps li{display:grid;gap:6px;font-size:.76rem;line-height:1.25;color:var(--muted);font-weight:700;min-width:0;overflow-wrap:anywhere}
+.steps .n{display:block;font-size:.7rem}
+@media (min-width:560px){.steps .n{display:inline}}
+.steps li::before{content:"";height:5px;border-radius:5px;background:var(--line)}
+.steps li.done::before,.steps li.on::before{background:var(--brand)}
+.steps li.on{color:var(--ink)}
+.steps .n{font-family:var(--f-mono);margin-right:4px}
 
-.drop{display:grid;place-items:center;text-align:center;gap:6px;border:2px dashed var(--line);border-radius:12px;padding:26px 16px;cursor:pointer;background:var(--sunk)}
-.drop:hover{border-color:var(--accent)}
-.drop strong{font-family:var(--f-display);font-size:1rem}
-.drop span{color:var(--muted);font-size:.86rem}
-.drop input{position:absolute;opacity:0;width:1px;height:1px}
-.preview{margin-top:12px;border-radius:10px;max-height:220px;width:100%;object-fit:contain;background:var(--sunk)}
-video{width:100%;border-radius:10px;background:#000;aspect-ratio:4/3;object-fit:cover;max-width:100%}
+main{max-width:880px;margin:0 auto;padding-block:8px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;min-width:0}
+.card h2{font-size:1.3rem;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:4px 0 16px;max-width:62ch}
+.kicker{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-deep);font-weight:700;margin:0 0 4px}
 
-textarea{width:100%;min-height:120px;font-family:var(--f-mono);font-size:.82rem;color:var(--ink);background:var(--sunk);
-  border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
-.hint{color:var(--muted);font-size:.86rem;margin:0 0 10px}
+.btn{font-weight:700;font-size:.92rem;border-radius:11px;padding:11px 16px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.btn.primary:hover{filter:brightness(.95)}
+.btn.ghost{border-color:transparent;color:var(--muted);background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.who:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
+.actions .grow{flex:1}
 .status{font-size:.88rem;margin:10px 0 0;min-height:1.4em}
 .status.err{color:var(--bad)} .status.ok{color:var(--good)}
-.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.btn{font:inherit;font-weight:700;font-size:.88rem;border-radius:9px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
-.btn:hover{border-color:var(--ink)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.btn.primary:hover{filter:brightness(.95)}
-.btn.ghost{border-color:transparent;color:var(--muted)}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.types{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;display:grid;gap:8px;font-size:.86rem;color:var(--muted)}
-.types b{color:var(--ink)}
 
-/* Ficha */
-.card-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:14px}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{font-size:.75rem;font-weight:700;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:var(--sunk);color:var(--muted)}
-.chip.good{background:var(--good-bg);color:var(--good)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
-.numero{display:grid;gap:2px;padding:14px 16px;border-radius:12px;background:var(--sunk);margin-bottom:14px}
-.numero label{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.numero input{font-family:var(--f-mono);font-size:clamp(1.4rem,4.5vw,1.9rem);letter-spacing:.04em;border:0;background:transparent;color:var(--ink);padding:0;width:100%;font-variant-numeric:tabular-nums}
-.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
-@media (max-width:460px){.fields{grid-template-columns:minmax(0,1fr)}}
-.f{display:grid;gap:3px;min-width:0}
-.f label{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.inp{display:grid;gap:4px;min-width:0}
+.inp label{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.inp input,.inp select{font:inherit;font-weight:700;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+@media (max-width:520px){.two{grid-template-columns:minmax(0,1fr)}}
+
+/* Autorización */
+.legal-text{background:var(--sunk);border-radius:12px;padding:14px 16px;font-size:.9rem;max-height:190px;overflow:auto}
+.legal-text p{margin:0 0 8px}
+.check{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-weight:700;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--brand);margin-top:2px;flex:none}
+.sig-wrap{margin-top:14px;display:grid;gap:6px}
+.sig-head{display:flex;justify-content:space-between;align-items:center}
+.sig-head span{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.sig{width:100%;height:170px;background:var(--paper);border:1px solid var(--line);border-radius:12px;touch-action:none;display:block;cursor:crosshair}
+.sig-line{font-size:.78rem;color:var(--muted)}
+
+/* Lector */
+.tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:11px;margin-bottom:14px;flex-wrap:wrap}
+.tab{flex:1 1 auto;font-size:.86rem;font-weight:700;color:var(--muted);background:transparent;border:0;border-radius:8px;padding:9px 10px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .1)}
+.drop{position:relative;display:grid;place-items:center;text-align:center;gap:6px;border:2px dashed var(--line);border-radius:12px;padding:24px 16px;cursor:pointer;background:var(--sunk)}
+.drop:hover,.drop:focus-within{border-color:var(--brand)}
+.drop strong{font-family:var(--f-display)}
+.drop span{color:var(--muted);font-size:.86rem}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.viewfinder{position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3;max-width:100%}
+.viewfinder video{width:100%;height:100%;object-fit:cover;display:block}
+.viewfinder::after{content:"";position:absolute;inset:22% 8%;border:2px solid var(--brand);border-radius:10px;box-shadow:0 0 0 999px rgb(0 0 0 / .35)}
+textarea{width:100%;min-height:110px;font-family:var(--f-mono);font-size:.8rem;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+.hint{color:var(--muted);font-size:.86rem;margin:0 0 10px}
+
+.idsheet{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+.idnum{display:grid;gap:2px;padding:12px 14px;border-radius:12px;background:var(--sunk);margin-bottom:12px}
+.idnum label{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.idnum input{font-family:var(--f-mono);font-size:clamp(1.4rem,5vw,1.9rem);letter-spacing:.04em;border:0;background:transparent;color:var(--ink);padding:0;width:100%;font-variant-numeric:tabular-nums}
+.f{display:grid;gap:2px;min-width:0}
+.f label{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .f input{font:inherit;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--line);padding:4px 0;width:100%;min-width:0}
-.f input:focus{border-bottom-color:var(--accent)}
+.f input:focus{outline:none;border-bottom-color:var(--brand)}
 .f input[readonly]{color:var(--muted)}
-.checks{margin-top:14px;font-size:.84rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px}
-.checks .y{color:var(--good)} .checks .n{color:var(--bad)}
-details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
-summary{cursor:pointer;color:var(--muted);font-size:.86rem}
-pre{font-family:var(--f-mono);font-size:.74rem;background:var(--sunk);padding:10px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:180px;margin:8px 0 0}
-.toggle{display:inline-flex;align-items:center;gap:6px;font-size:.86rem;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{font-size:.74rem;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.chip.good{background:var(--good-bg);color:var(--good)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--muted);font-size:.84rem}
+pre{font-family:var(--f-mono);font-size:.72rem;background:var(--sunk);padding:10px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:160px;margin:8px 0 0}
 
-/* Sesión */
-.session-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
-.tablebox{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
-th{text-align:left;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-td.mono{font-family:var(--f-mono)}
-tr.sel td{background:var(--sunk)}
-tbody tr{cursor:pointer}
-.empty{color:var(--muted);font-size:.9rem;padding:14px 4px}
-.legal{font-size:.82rem;color:var(--muted);max-width:75ch;margin:0}
+/* Copia */
+.sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:600px){.sides{grid-template-columns:minmax(0,1fr)}}
+.side{display:grid;gap:8px;min-width:0}
+.side-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.side-head b{font-family:var(--f-display)}
+.slot{position:relative;aspect-ratio:85.6/54;border-radius:12px;border:2px dashed var(--line);background:var(--sunk);display:grid;place-items:center;overflow:hidden;cursor:pointer;max-width:100%;color:var(--muted);font-size:.86rem;text-align:center;padding:10px}
+.slot:hover,.slot:focus-within{border-color:var(--brand)}
+.slot.has{border-style:solid;padding:0}
+.slot img{width:100%;height:100%;object-fit:cover;display:block}
+.slot input{position:absolute;opacity:0;width:1px;height:1px}
+.mini{font-size:.8rem;padding:6px 10px;border-radius:8px}
+
+/* Listo */
+.summary-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start}
+.client-name{font-family:var(--f-display);font-size:clamp(1.3rem,4vw,1.7rem);font-weight:700;letter-spacing:-.01em}
+.client-id{font-family:var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.thumbs{display:flex;gap:8px}
+.thumbs img{width:96px;aspect-ratio:85.6/54;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.checklist{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:8px}
+.checklist li{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--sunk);font-weight:700;font-size:.92rem}
+.dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:.8rem;font-weight:800}
+.dot.ok{background:var(--good-bg);color:var(--good)} .dot.no{background:var(--bad-bg);color:var(--bad)} .dot.mid{background:var(--warn-bg);color:var(--warn)}
+.checklist small{display:block;font-weight:400;color:var(--muted)}
+.counter{font-size:.85rem;color:var(--muted)}
+.counter b{color:var(--ink);font-family:var(--f-mono)}
+.foot{font-size:.8rem;color:var(--muted);max-width:70ch}
 .copybox{position:fixed;left:-9999px;top:0}
-@media (prefers-reduced-motion:no-preference){.flash{animation:flash .9s ease-out}@keyframes flash{from{box-shadow:0 0 0 3px var(--accent)}to{box-shadow:0 0 0 0 transparent}}}
+@media (prefers-reduced-motion:no-preference){[data-step]:not([hidden]){animation:rise .25s ease-out}@keyframes rise{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}}
 </style>
 
-<div class="wrap">
-  <header class="top">
-    <div>
-      <p class="eyebrow">Distritec · Desarrollo</p>
-      <h1>Lector de cédulas</h1>
-      <p class="lede">Lee el respaldo de la cédula colombiana y deja los datos listos para el estudio de crédito, sin digitar.</p>
+<header class="band">
+  <div class="band-in">
+    <div class="brand">
+      <img class="logo" id="logo" src="data:image/png;base64,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" alt="Distritec · Tu aliado en tecnología">
+      <span class="app-name">Crédito · Cédula</span>
     </div>
-    <span class="privacy">Todo se procesa en este dispositivo. No se envía ni se guarda nada.</span>
-  </header>
+    <button class="who" id="whoBtn" type="button" title="Cambiar asesor o sede"><span id="whoTxt">Configura asesor y sede</span></button>
+  </div>
+</header>
 
-  <main class="grid">
-    <section class="panel" aria-label="Captura">
-      <div class="tabs" role="tablist">
-        <button class="tab" role="tab" id="t-foto" aria-selected="true" data-tab="foto">Foto</button>
-        <button class="tab" role="tab" id="t-lector" aria-selected="false" data-tab="lector">Pistola lectora</button>
-        <button class="tab" role="tab" id="t-camara" aria-selected="false" data-tab="camara">Cámara en vivo</button>
-        <button class="tab" role="tab" id="t-texto" aria-selected="false" data-tab="texto">Pegar texto</button>
-      </div>
+<nav class="steps" aria-label="Progreso">
+  <ol id="stepper">
+    <li data-s="1"><span><span class="n">1</span>Autorización</span></li>
+    <li data-s="2"><span><span class="n">2</span>Leer cédula</span></li>
+    <li data-s="3"><span><span class="n">3</span>Copia</span></li>
+    <li data-s="4"><span><span class="n">4</span>Expediente</span></li>
+  </ol>
+</nav>
 
-      <div data-pane="foto">
-        <label class="drop">
-          <input type="file" id="fileIn" accept="image/*" capture="environment">
-          <strong>Tomar o subir foto del respaldo</strong>
-          <span>En el celular abre la cámara. Encuadra el código de barras o las 3 líneas de abajo, con buena luz y sin reflejos.</span>
-        </label>
-        <img id="preview" class="preview" alt="Foto cargada" hidden>
-        <p class="status" id="fotoStatus"></p>
-        <div class="row"><button class="btn" id="ocrBtn" hidden>Leer las 3 líneas (cédula digital)</button></div>
-      </div>
+<main>
+  <!-- 0. Asesor -->
+  <section class="card" data-step="0" hidden>
+    <p class="kicker">Antes de empezar</p>
+    <h2>¿Quién atiende en este celular?</h2>
+    <p class="sub">Se guarda solo en este equipo y aparece en cada expediente.</p>
+    <div class="two">
+      <div class="inp"><label for="asesorIn">Nombre del asesor</label><input id="asesorIn" autocomplete="name" placeholder="Ej. Laura Gómez"></div>
+      <div class="inp"><label for="sedeIn">Sede</label><input id="sedeIn" placeholder="Ej. Pereira Centro"></div>
+    </div>
+    <div class="actions"><button class="btn primary" id="saveWho" type="button">Guardar y empezar</button></div>
+  </section>
 
-      <div data-pane="lector" hidden>
-        <p class="hint">Conecta una pistola lectora 2D compatible con PDF417. Haz clic en el recuadro y dispara sobre el código del respaldo.</p>
-        <textarea id="scanIn" spellcheck="false" placeholder="Esperando lectura…"></textarea>
-        <p class="status" id="scanStatus"></p>
-      </div>
+  <!-- 1. Autorización -->
+  <section class="card" data-step="1" hidden>
+    <p class="kicker">Paso 1 de 4</p>
+    <h2>Autorización del cliente</h2>
+    <p class="sub">Lee la autorización con el cliente y pídele que firme con el dedo.</p>
+    <div class="legal-text" id="legalText">
+      <p>Autorizo a DISTRITEC y a las entidades financieras, plataformas, fintech y empresas de servicios públicos con las que gestiona la financiación, para recolectar y tratar mis datos personales, incluidos los de mi documento de identidad, con el fin de estudiar, aprobar y administrar mi solicitud de crédito.</p>
+      <p>Autorizo también la consulta y el reporte de mi información en centrales de riesgo. Conozco mi derecho a conocer, actualizar, rectificar y suprimir mis datos y a revocar esta autorización, conforme a la Ley 1581 de 2012 y la Ley 1266 de 2008.</p>
+    </div>
+    <label class="check"><input type="checkbox" id="authChk"> El cliente leyó y acepta la autorización</label>
+    <div class="sig-wrap">
+      <div class="sig-head"><span>Firma del cliente</span><button class="btn ghost mini" id="sigClear" type="button">Borrar firma</button></div>
+      <canvas class="sig" id="sig" aria-label="Recuadro para la firma del cliente"></canvas>
+      <div class="sig-line" id="sigHint">Firma dentro del recuadro.</div>
+    </div>
+    <div class="actions"><span class="grow counter" id="counter"></span><button class="btn primary" id="go2" type="button" disabled>Continuar</button></div>
+  </section>
 
-      <div data-pane="camara" hidden>
-        <video id="video" muted playsinline></video>
-        <div class="row">
-          <button class="btn primary" id="camStart">Encender cámara</button>
-          <button class="btn" id="camStop" disabled>Detener</button>
-        </div>
-        <p class="status" id="camStatus"></p>
+  <!-- 2. Leer -->
+  <section class="card" data-step="2" hidden>
+    <p class="kicker">Paso 2 de 4</p>
+    <h2>Leer la cédula</h2>
+    <p class="sub">Por el respaldo. Sirve para la cédula amarilla y la digital.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="camara" id="t-cam">Cámara</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="foto" id="t-foto">Foto</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="lector" id="t-lector">Pistola</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="texto" id="t-texto">Texto</button>
+    </div>
+    <div data-pane="camara">
+      <div class="viewfinder"><video id="video" muted playsinline></video></div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn primary" id="camStart" type="button">Encender cámara</button>
+        <button class="btn" id="camStop" type="button" disabled>Detener</button>
       </div>
+      <p class="hint" style="margin-top:10px">Cédula amarilla: apunta al código de barras. Cédula digital: usa la pestaña Foto.</p>
+      <p class="status" id="camStatus"></p>
+    </div>
+    <div data-pane="foto" hidden>
+      <label class="drop"><input type="file" id="fileIn" accept="image/*" capture="environment">
+        <strong>Tomar foto del respaldo</strong>
+        <span>Con buena luz, sin reflejos, la cédula llenando la foto.</span></label>
+      <p class="status" id="fotoStatus"></p>
+      <div class="actions" style="margin-top:6px"><button class="btn" id="ocrBtn" type="button" hidden>Leer las 3 líneas (cédula digital)</button></div>
+    </div>
+    <div data-pane="lector" hidden>
+      <p class="hint">Haz clic en el recuadro y dispara la pistola lectora sobre el código del respaldo.</p>
+      <textarea id="scanIn" spellcheck="false" placeholder="Esperando lectura…"></textarea>
+      <p class="status" id="scanStatus"></p>
+    </div>
+    <div data-pane="texto" hidden>
+      <p class="hint">Pega los datos del código o las 3 líneas de la cédula digital.</p>
+      <textarea id="pasteIn" spellcheck="false"></textarea>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn primary" id="parseBtn" type="button">Interpretar</button>
+        <button class="btn ghost" id="demoBtn" type="button">Usar cédula de ejemplo</button>
+      </div>
+      <p class="status" id="pasteStatus"></p>
+    </div>
 
-      <div data-pane="texto" hidden>
-        <p class="hint">Pega los datos crudos del código o las 3 líneas de la zona de lectura de la cédula digital.</p>
-        <textarea id="pasteIn" spellcheck="false"></textarea>
-        <div class="row">
-          <button class="btn primary" id="parseBtn">Interpretar</button>
-          <button class="btn ghost" id="demoMrz">Probar con cédula digital de ejemplo</button>
-        </div>
-        <p class="status" id="pasteStatus"></p>
-      </div>
-
-      <div class="types">
-        <div><b>Cédula amarilla con hologramas:</b> código de barras PDF417 del respaldo.</div>
-        <div><b>Cédula digital:</b> 3 líneas de letras y números (zona MRZ) del respaldo.</div>
-      </div>
-    </section>
-
-    <section class="panel" id="card" aria-live="polite" aria-label="Datos leídos">
-      <div class="card-head">
-        <h2 id="cardTitle">Datos de la cédula</h2>
-        <div class="chips" id="chips"></div>
-      </div>
-      <div class="numero">
-        <label for="f-numero">Número de cédula</label>
-        <input id="f-numero" data-k="numero" inputmode="numeric" autocomplete="off">
-      </div>
-      <div class="fields">
+    <div class="idsheet" id="idsheet" hidden>
+      <div class="chips" id="chips"></div>
+      <div class="idnum"><label for="f-numero">Número de cédula</label><input id="f-numero" data-k="numero" inputmode="numeric" autocomplete="off"></div>
+      <div class="two">
         <div class="f"><label for="f-apellido1">Primer apellido</label><input id="f-apellido1" data-k="apellido1" autocomplete="off"></div>
         <div class="f"><label for="f-apellido2">Segundo apellido</label><input id="f-apellido2" data-k="apellido2" autocomplete="off"></div>
         <div class="f"><label for="f-nombre1">Primer nombre</label><input id="f-nombre1" data-k="nombre1" autocomplete="off"></div>
@@ -182,41 +249,59 @@ tbody tr{cursor:pointer}
         <div class="f"><label for="f-nacimiento">Fecha de nacimiento</label><input id="f-nacimiento" data-k="nacimiento" placeholder="AAAA-MM-DD" autocomplete="off"></div>
         <div class="f"><label for="f-edad">Edad</label><input id="f-edad" readonly></div>
         <div class="f"><label for="f-sexo">Sexo</label><input id="f-sexo" data-k="sexo" autocomplete="off"></div>
-        <div class="f"><label for="f-rh">RH</label><input id="f-rh" data-k="rh" autocomplete="off"></div>
-        <div class="f" id="venceBox" hidden><label for="f-vence">Vence</label><input id="f-vence" data-k="vence" autocomplete="off"></div>
+        <div class="f" id="venceBox"><label for="f-vence">Vence (cédula digital)</label><input id="f-vence" data-k="vence" autocomplete="off"></div>
       </div>
-      <div class="checks" id="checks" hidden></div>
-      <div class="row">
-        <button class="btn primary" id="copyOne">Copiar datos</button>
-        <label class="toggle"><input type="checkbox" id="incRh"> Incluir RH al copiar</label>
-      </div>
-      <p class="status" id="cardStatus"></p>
       <details><summary>Datos crudos leídos</summary><pre id="raw"></pre></details>
-    </section>
-  </main>
-
-  <section class="panel" aria-label="Lecturas de la sesión">
-    <div class="session-head">
-      <h2>Lecturas de esta sesión</h2>
-      <div class="row" style="margin:0">
-        <button class="btn" id="copyAll" disabled>Copiar tabla para Excel</button>
-        <button class="btn ghost" id="clearAll" disabled>Borrar lista</button>
-      </div>
     </div>
-    <div class="tablebox">
-      <table>
-        <thead><tr><th>Hora</th><th>Cédula</th><th>Nombre completo</th><th>Edad</th><th>Tipo</th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-    <p class="empty" id="empty">Aún no hay lecturas. Cada cédula que leas aparece aquí; la lista se borra al cerrar la página.</p>
+    <div class="actions"><button class="btn ghost" data-back="1" type="button">Atrás</button><span class="grow"></span><button class="btn primary" id="go3" type="button" disabled>Continuar</button></div>
   </section>
 
-  <p class="legal">Antes de leer la cédula, pide la autorización de tratamiento de datos del cliente (Ley 1581 de 2012). El RH es un dato sensible: por eso no se copia a menos que lo actives.</p>
-</div>
+  <!-- 3. Copia -->
+  <section class="card" data-step="3" hidden>
+    <p class="kicker">Paso 3 de 4</p>
+    <h2>Copia de la cédula</h2>
+    <p class="sub">Toma el frente y el respaldo. Se ampliarán al 150 % en una sola hoja, con marca de agua de uso exclusivo para crédito.</p>
+    <div class="sides">
+      <div class="side">
+        <div class="side-head"><b>Frente</b><button class="btn ghost mini" data-rot="frente" type="button">Girar</button></div>
+        <label class="slot" id="slot-frente"><input type="file" accept="image/*" capture="environment" data-side="frente"><span>Tocar para tomar la foto del frente</span></label>
+      </div>
+      <div class="side">
+        <div class="side-head"><b>Respaldo</b><button class="btn ghost mini" data-rot="respaldo" type="button">Girar</button></div>
+        <label class="slot" id="slot-respaldo"><input type="file" accept="image/*" capture="environment" data-side="respaldo"><span>Tocar para tomar la foto del respaldo</span></label>
+      </div>
+    </div>
+    <p class="status" id="copiaStatus"></p>
+    <div class="actions"><button class="btn ghost" data-back="2" type="button">Atrás</button><span class="grow"></span><button class="btn primary" id="go4" type="button" disabled>Generar expediente</button></div>
+  </section>
+
+  <!-- 4. Expediente -->
+  <section class="card" data-step="4" hidden>
+    <p class="kicker">Paso 4 de 4</p>
+    <div class="summary-head">
+      <div><div class="client-name" id="sumName"></div><div class="client-id" id="sumId"></div></div>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+    <ul class="checklist" id="checklist"></ul>
+    <div class="two" style="margin-top:16px">
+      <div class="inp"><label for="celIn">Celular del cliente</label><input id="celIn" inputmode="tel" autocomplete="off" placeholder="300 000 0000"></div>
+      <div class="inp"><label for="mailIn">Correo del cliente</label><input id="mailIn" inputmode="email" autocomplete="off" placeholder="opcional"></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="pdfBtn" type="button">Descargar expediente PDF</button>
+      <button class="btn" id="shareBtn" type="button" hidden>Compartir (WhatsApp, correo…)</button>
+      <button class="btn" id="copyBtn" type="button">Copiar datos para la plataforma</button>
+    </div>
+    <p class="status" id="sumStatus"></p>
+    <div class="actions"><button class="btn ghost" data-back="3" type="button">Atrás</button><span class="grow"></span><button class="btn" id="newBtn" type="button">Atender nuevo cliente</button></div>
+  </section>
+
+  <p class="foot">Todo se procesa en este celular. Al empezar un nuevo cliente se borran los datos y las fotos del anterior.</p>
+</main>
 <textarea class="copybox" id="copybox" aria-hidden="true" tabindex="-1"></textarea>
 
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 /* Parsers de cédula colombiana. Sin dependencias. */
 const CED = (() => {
@@ -434,11 +519,88 @@ const CED = (() => {
 (() => {
   const $ = id => document.getElementById(id);
   const TIPOS = { pdf417: 'Cédula amarilla', mrz: 'Cédula digital' };
-  const FIELDS = ['numero','apellido1','apellido2','nombre1','nombre2','nacimiento','sexo','rh','vence'];
-  let current = null;
-  const session = [];
+  const FIELDS = ['numero','apellido1','apellido2','nombre1','nombre2','nacimiento','sexo','vence'];
+  const store = {
+    get(k){ try { return JSON.parse(localStorage.getItem('dtc_' + k)); } catch(e){ return null; } },
+    set(k,v){ try { localStorage.setItem('dtc_' + k, JSON.stringify(v)); } catch(e){} }
+  };
+  const S = { who: store.get('who'), auth: null, rec: null, copia: { frente: null, respaldo: null }, src: { frente: null, respaldo: null }, rot: { frente: 0, respaldo: 0 } };
+  const setStatus = (id, msg, kind) => { const el = $(id); el.textContent = msg || ''; el.className = 'status' + (kind ? ' ' + kind : ''); };
+  const fmtFecha = d => d.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const fmtHora = d => d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
 
-  /* ---------- Tabs ---------- */
+
+  /* ---------- Navegación ---------- */
+  let step = 0;
+  function show(n) {
+    if (n > 0 && !S.who) n = 0;
+    step = n;
+    document.querySelectorAll('[data-step]').forEach(s => s.hidden = +s.dataset.step !== n);
+    document.querySelectorAll('#stepper li').forEach(li => {
+      const s = +li.dataset.s; li.className = s < n ? 'done' : s === n ? 'on' : '';
+    });
+    if (n !== 2) stopCam();
+    if (n === 1) setTimeout(sizeSig, 0);
+    if (n === 4) renderSummary();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => show(+b.dataset.back)));
+
+  /* ---------- Asesor y sede ---------- */
+  function renderWho() {
+    const t = $('whoTxt'); t.textContent = '';
+    if (S.who) { const b = document.createElement('b'); b.textContent = S.who.sede; t.append(b, ' · ' + S.who.asesor); }
+    else t.textContent = 'Configura asesor y sede';
+    renderCounter();
+  }
+  $('whoBtn').addEventListener('click', () => { if (S.who) { $('asesorIn').value = S.who.asesor; $('sedeIn').value = S.who.sede; } show(0); });
+  $('saveWho').addEventListener('click', () => {
+    const asesor = $('asesorIn').value.trim(), sede = $('sedeIn').value.trim();
+    if (!asesor || !sede) { $('asesorIn').focus(); return; }
+    S.who = { asesor, sede }; store.set('who', S.who); renderWho(); show(S.rec ? 2 : 1);
+  });
+  function todayKey(){ return new Date().toISOString().slice(0,10); }
+  function renderCounter() {
+    const c = store.get('count'); const n = c && c.d === todayKey() ? c.n : 0;
+    $('counter').innerHTML = n ? 'Clientes atendidos hoy: <b>' + n + '</b>' : '';
+  }
+  function bumpCounter() { const c = store.get('count'); const n = (c && c.d === todayKey() ? c.n : 0) + 1; store.set('count', { d: todayKey(), n }); renderCounter(); }
+
+  /* ---------- Paso 1: firma ---------- */
+  const sig = $('sig'); const sctx = sig.getContext('2d'); let drawing = false, signed = false, last = null;
+  function sizeSig() {
+    const r = sig.getBoundingClientRect(); if (!r.width) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const prev = signed ? sig.toDataURL() : null;
+    sig.width = Math.round(r.width * dpr); sig.height = Math.round(r.height * dpr);
+    sctx.setTransform(dpr,0,0,dpr,0,0);
+    sctx.fillStyle = '#FFFFFF'; sctx.fillRect(0,0,r.width,r.height);
+    sctx.strokeStyle = '#111111'; sctx.lineWidth = 2.4; sctx.lineCap = 'round'; sctx.lineJoin = 'round';
+    sctx.beginPath(); sctx.strokeStyle = '#C9D3C4'; sctx.lineWidth = 1; sctx.moveTo(16, r.height - 34); sctx.lineTo(r.width - 16, r.height - 34); sctx.stroke();
+    sctx.strokeStyle = '#111111'; sctx.lineWidth = 2.4;
+    if (prev) { const im = new Image(); im.onload = () => sctx.drawImage(im, 0, 0, r.width, r.height); im.src = prev; }
+  }
+  window.addEventListener('resize', () => { if (step === 1) sizeSig(); });
+  const pt = e => { const r = sig.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  sig.addEventListener('pointerdown', e => { drawing = true; last = pt(e); sig.setPointerCapture(e.pointerId); });
+  sig.addEventListener('pointermove', e => {
+    if (!drawing) return; const p = pt(e);
+    sctx.beginPath(); sctx.moveTo(last.x, last.y); sctx.lineTo(p.x, p.y); sctx.stroke(); last = p;
+    if (!signed) { signed = true; checkAuth(); }
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(t => sig.addEventListener(t, () => drawing = false));
+  $('sigClear').addEventListener('click', () => { signed = false; sizeSig(); checkAuth(); });
+  $('authChk').addEventListener('change', checkAuth);
+  function checkAuth() {
+    $('go2').disabled = !($('authChk').checked && signed);
+    $('sigHint').textContent = signed ? 'Firma registrada.' : 'Firma dentro del recuadro.';
+  }
+  $('go2').addEventListener('click', () => {
+    S.auth = { firma: sig.toDataURL('image/png'), fecha: new Date() };
+    show(2);
+  });
+
+  /* ---------- Paso 2: lectura ---------- */
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
     document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== t.dataset.tab);
@@ -446,111 +608,46 @@ const CED = (() => {
     if (t.dataset.tab !== 'camara') stopCam();
   }));
 
-  const setStatus = (id, msg, kind) => { const el = $(id); el.textContent = msg || ''; el.className = 'status' + (kind ? ' ' + kind : ''); };
+  const nombreCompleto = r => [r.nombre1, r.nombre2, r.apellido1, r.apellido2].filter(Boolean).join(' ');
+  function visibleRaw(s) { return (s || '').replace(/\x00+/g, m => '·'.repeat(Math.min(m.length, 3))).replace(/[\x01-\x08\x0B-\x1F]/g, '·'); }
 
-  /* ---------- Ficha ---------- */
-  function nombreCompleto(r) { return [r.nombre1, r.nombre2, r.apellido1, r.apellido2].filter(Boolean).join(' '); }
-
-  function render(rec, opts = {}) {
-    current = rec;
+  function renderRec(rec, ejemplo) {
+    S.rec = rec; S.rec.ejemplo = !!ejemplo;
+    $('idsheet').hidden = false;
     FIELDS.forEach(k => { const el = $('f-' + k); if (el) el.value = rec[k] || ''; });
     $('venceBox').hidden = rec.tipo !== 'mrz';
-    updateEdad();
-    const chips = [];
-    if (opts.ejemplo) chips.push(['Ejemplo · datos ficticios', 'warn']);
-    chips.push([TIPOS[rec.tipo] || 'Código', '']);
-    const conf = { alta: ['Lectura confiable', 'good'], media: ['Revisa los nombres', 'warn'], baja: ['Revisa todos los campos', 'bad'] }[rec.confianza];
-    if (conf) chips.push(conf);
+    $('raw').textContent = visibleRaw(rec.crudo);
+    renderChips(); validate2();
+  }
+  function renderChips() {
+    const r = S.rec, out = [];
+    if (r.ejemplo) out.push(['Ejemplo · datos ficticios', 'warn']);
+    out.push([TIPOS[r.tipo] || 'Cédula', '']);
+    out.push({ alta: ['Lectura verificada', 'good'], media: ['Revisa los nombres', 'warn'], baja: ['Revisa todos los campos', 'bad'] }[r.confianza] || ['Ingresado a mano', 'warn']);
+    const e = CED.edad(r.nacimiento);
+    if (e != null) out.push(e >= 18 ? [e + ' años', 'good'] : ['Menor de edad', 'bad']);
     $('chips').innerHTML = '';
-    chips.forEach(([t, c]) => { const s = document.createElement('span'); s.className = 'chip ' + c; s.textContent = t; $('chips').appendChild(s); });
-
-    const ck = $('checks');
-    if (rec.checks) {
-      ck.hidden = false; ck.innerHTML = '';
-      const names = { documento: 'Documento', nacimiento: 'Nacimiento', vencimiento: 'Vencimiento', general: 'General' };
-      const lab = document.createElement('span'); lab.textContent = 'Dígitos de control:'; ck.appendChild(lab);
-      Object.entries(rec.checks).forEach(([k, v]) => { const s = document.createElement('span'); s.className = v ? 'y' : 'n'; s.textContent = names[k] + (v ? ' correcto' : ' no coincide'); ck.appendChild(s); });
-    } else ck.hidden = true;
-
-    $('raw').textContent = visibleRaw(rec.crudo || '');
-    setStatus('cardStatus', '');
-    if (!opts.ejemplo && !opts.sinAgregar) {
-      $('card').classList.remove('flash'); void $('card').offsetWidth; $('card').classList.add('flash');
-      addToSession(rec);
-    }
-  }
-
-  function visibleRaw(s) { return s.replace(/\x00+/g, m => '·'.repeat(Math.min(m.length, 3))).replace(/[\x01-\x08\x0B-\x1F]/g, '·'); }
-
-  function updateEdad() {
-    const e = CED.edad($('f-nacimiento').value);
+    out.forEach(([t, c]) => { const s = document.createElement('span'); s.className = 'chip ' + c; s.textContent = t; $('chips').appendChild(s); });
     $('f-edad').value = e == null ? '' : e + ' años';
-    const old = document.getElementById('chip-edad'); if (old) old.remove();
-    if (e != null && e < 18) {
-      const s = document.createElement('span'); s.id = 'chip-edad'; s.className = 'chip bad'; s.textContent = 'Menor de edad';
-      $('chips').appendChild(s);
+  }
+  FIELDS.forEach(k => { const el = $('f-' + k); el && el.addEventListener('input', () => { if (!S.rec) return; S.rec[k] = el.value.trim().toUpperCase(); renderChips(); validate2(); }); });
+  function validate2() { $('go3').disabled = !(S.rec && /^\d{5,10}$/.test(S.rec.numero) && S.rec.apellido1 && S.rec.nombre1); }
+
+  function handleText(text, statusId, fromQR, img) {
+    const rec = CED.parseAny(text);
+    if (rec) {
+      renderRec(rec);
+      if (img && !S.src.respaldo) setSide('respaldo', img);
+      setStatus(statusId, rec.confianza === 'alta' ? 'Cédula leída.' : 'Cédula leída. Revisa los campos antes de continuar.', 'ok');
+      if (navigator.vibrate) try { navigator.vibrate(60); } catch(e){}
+      return true;
     }
+    setStatus(statusId, fromQR ? 'Leí un código QR que todavía no reconozco. En cédula digital, lee las 3 líneas de abajo.' : 'No reconozco estos datos como una cédula. Verifica que sea el respaldo e intenta de nuevo.', 'err');
+    return false;
   }
+  $('go3').addEventListener('click', () => show(3));
 
-  FIELDS.forEach(k => {
-    const el = $('f-' + k); if (!el) return;
-    el.addEventListener('input', () => {
-      if (!current) return;
-      current[k] = el.value.trim().toUpperCase();
-      if (k === 'nacimiento') updateEdad();
-      renderRows();
-    });
-  });
-
-  function payload(r, incRh) {
-    const o = { cedula: r.numero, primer_apellido: r.apellido1, segundo_apellido: r.apellido2, primer_nombre: r.nombre1,
-      segundo_nombre: r.nombre2, fecha_nacimiento: r.nacimiento, edad: CED.edad(r.nacimiento), sexo: r.sexo, tipo_documento: TIPOS[r.tipo] };
-    if (r.vence) o.vence = r.vence;
-    if (incRh) o.rh = r.rh;
-    return o;
-  }
-
-  async function copyText(text, statusId) {
-    try { await navigator.clipboard.writeText(text); setStatus(statusId, 'Copiado.', 'ok'); }
-    catch (e) {
-      const box = $('copybox'); box.value = text; box.select();
-      let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
-      setStatus(statusId, ok ? 'Copiado.' : 'No se pudo copiar automáticamente. Abre "Datos crudos" y copia a mano.', ok ? 'ok' : 'err');
-    }
-  }
-  $('copyOne').addEventListener('click', () => { if (current) copyText(JSON.stringify(payload(current, $('incRh').checked), null, 2), 'cardStatus'); });
-
-  /* ---------- Sesión ---------- */
-  function addToSession(rec) {
-    const i = session.findIndex(s => s.numero && s.numero === rec.numero);
-    rec.hora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-    if (i >= 0) session.splice(i, 1);
-    session.unshift(rec);
-    renderRows();
-  }
-  function renderRows() {
-    const tb = $('rows'); tb.innerHTML = '';
-    session.forEach(r => {
-      const tr = document.createElement('tr'); if (r === current) tr.className = 'sel';
-      const e = CED.edad(r.nacimiento);
-      [[r.hora], [r.numero, 'mono'], [nombreCompleto(r)], [e == null ? '' : e], [TIPOS[r.tipo]]].forEach(([v, c]) => {
-        const td = document.createElement('td'); td.textContent = v ?? ''; if (c) td.className = c; tr.appendChild(td);
-      });
-      tr.addEventListener('click', () => { render(r, { sinAgregar: true }); renderRows(); });
-      tb.appendChild(tr);
-    });
-    $('empty').hidden = session.length > 0;
-    $('copyAll').disabled = $('clearAll').disabled = session.length === 0;
-  }
-  $('copyAll').addEventListener('click', () => {
-    const inc = $('incRh').checked;
-    const head = ['Cédula','Primer apellido','Segundo apellido','Primer nombre','Segundo nombre','Fecha nacimiento','Edad','Sexo','Tipo'].concat(inc ? ['RH'] : []);
-    const lines = session.map(r => { const p = payload(r, inc); return [p.cedula,p.primer_apellido,p.segundo_apellido,p.primer_nombre,p.segundo_nombre,p.fecha_nacimiento,p.edad ?? '',p.sexo,p.tipo_documento].concat(inc ? [p.rh] : []).join('\t'); });
-    copyText([head.join('\t')].concat(lines).join('\n'), 'cardStatus');
-  });
-  $('clearAll').addEventListener('click', () => { session.length = 0; renderRows(); });
-
-  /* ---------- Decodificación de imágenes ---------- */
+  /* Decodificación de imágenes */
   const hasZX = typeof ZXing !== 'undefined';
   let reader = null, hints = null;
   if (hasZX) {
@@ -560,155 +657,277 @@ const CED = (() => {
     reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
   }
   const tick = () => new Promise(r => setTimeout(r, 0));
-
   function drawScaled(img, maxDim, rot, contrast) {
     const w = img.naturalWidth, h = img.naturalHeight;
     const s = Math.min(1, maxDim / Math.max(w, h)) || 1;
     const cw = Math.round(w * s), ch = Math.round(h * s);
-    const c = document.createElement('canvas');
-    const swap = rot % 180 !== 0;
+    const c = document.createElement('canvas'); const swap = rot % 180 !== 0;
     c.width = swap ? ch : cw; c.height = swap ? cw : ch;
     const x = c.getContext('2d', { willReadFrequently: true });
     if (contrast) x.filter = 'grayscale(1) contrast(1.8)';
-    x.translate(c.width / 2, c.height / 2); x.rotate(rot * Math.PI / 180);
-    x.drawImage(img, -cw / 2, -ch / 2, cw, ch);
+    x.translate(c.width / 2, c.height / 2); x.rotate(rot * Math.PI / 180); x.drawImage(img, -cw / 2, -ch / 2, cw, ch);
     return c;
   }
-
   async function decodeImage(img) {
     if (!reader) return null;
-    const tries = [[1800,0,false],[2600,0,false],[1200,0,false],[1800,90,false],[1800,0,true],[2600,90,true]];
-    for (const [d, r, c] of tries) {
-      try {
-        const src = new ZXing.HTMLCanvasElementLuminanceSource(drawScaled(img, d, r, c));
-        const res = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src)), hints);
-        if (res) return res;
-      } catch (e) { /* sigue intentando */ }
+    for (const [d, r, c] of [[1800,0,false],[2600,0,false],[1200,0,false],[1800,90,false],[1800,0,true],[2600,90,true]]) {
+      try { const res = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(drawScaled(img, d, r, c)))), hints); if (res) return res; } catch (e) {}
       await tick();
     }
     return null;
   }
-
-  function handleText(text, statusId, fromQR) {
-    const rec = CED.parseAny(text);
-    if (rec) {
-      render(rec);
-      const msg = rec.confianza === 'alta' ? 'Cédula leída.' : 'Cédula leída. Revisa los campos marcados antes de usarlos.';
-      setStatus(statusId, msg, 'ok');
-      return true;
-    }
-    if (fromQR) {
-      $('raw').textContent = text;
-      setStatus(statusId, 'Leí un código QR, pero todavía no reconozco su formato. Lo dejé en "Datos crudos" para ajustarlo con cédulas reales. Prueba con las 3 líneas de abajo.', 'err');
-    } else {
-      setStatus(statusId, 'No reconozco estos datos como una cédula. Verifica que sea el respaldo y vuelve a intentar.', 'err');
-    }
-    return false;
-  }
+  const loadImg = file => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
 
   let lastImg = null;
   $('fileIn').addEventListener('change', async e => {
-    const file = e.target.files && e.target.files[0]; if (!file) return;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = async () => {
-      lastImg = img;
-      $('preview').src = url; $('preview').hidden = false;
-      $('ocrBtn').hidden = true;
-      if (!reader) { setStatus('fotoStatus', 'No cargó el decodificador de códigos. Revisa la conexión y recarga la página.', 'err'); $('ocrBtn').hidden = false; return; }
-      setStatus('fotoStatus', 'Buscando el código…');
-      const res = await decodeImage(img);
-      if (res) {
-        const isQR = res.getBarcodeFormat() === ZXing.BarcodeFormat.QR_CODE;
-        if (!handleText(res.getText(), 'fotoStatus', isQR)) $('ocrBtn').hidden = false;
-      } else {
-        setStatus('fotoStatus', 'No encontré un código de barras. Si es cédula digital, lee las 3 líneas. Si es amarilla, toma la foto más cerca y sin reflejos.', 'err');
-        $('ocrBtn').hidden = false;
-      }
-      e.target.value = '';
-    };
-    img.onerror = () => setStatus('fotoStatus', 'No pude abrir esa imagen. Usa una foto JPG o PNG.', 'err');
-    img.src = url;
+    const f = e.target.files && e.target.files[0]; if (!f) return; e.target.value = '';
+    let img; try { img = await loadImg(f); } catch (_) { setStatus('fotoStatus', 'No pude abrir esa imagen. Usa una foto JPG o PNG.', 'err'); return; }
+    lastImg = img; $('ocrBtn').hidden = true;
+    if (!reader) { setStatus('fotoStatus', 'No cargó el lector de códigos. Revisa la conexión. Si es cédula digital, lee las 3 líneas.', 'err'); $('ocrBtn').hidden = false; return; }
+    setStatus('fotoStatus', 'Buscando el código…');
+    const res = await decodeImage(img);
+    if (res) { const qr = res.getBarcodeFormat() === ZXing.BarcodeFormat.QR_CODE; if (!handleText(res.getText(), 'fotoStatus', qr, img)) { $('ocrBtn').hidden = false; if (qr) runOCR(); } }
+    else { setStatus('fotoStatus', 'No vi código de barras. Si es cédula digital, leo las 3 líneas…', ''); $('ocrBtn').hidden = false; runOCR(); }
   });
 
-  /* ---------- OCR de la zona MRZ (cédula digital) ---------- */
   function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.appendChild(s); }); }
   const timeout = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
-
-  $('ocrBtn').addEventListener('click', async () => {
-    if (!lastImg) return;
-    $('ocrBtn').disabled = true;
+  let ocrBusy = false;
+  async function runOCR() {
+    if (!lastImg || ocrBusy) return; ocrBusy = true; $('ocrBtn').disabled = true;
     setStatus('fotoStatus', 'Leyendo las 3 líneas… la primera vez puede tardar unos segundos.');
     try {
       if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
       const worker = await Promise.race([Tesseract.createWorker('eng'), timeout(25000)]);
       await worker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<' });
-      // Recorta la franja inferior, donde está la zona MRZ.
       const full = drawScaled(lastImg, 2000, 0, true);
-      const c = document.createElement('canvas');
-      const y0 = Math.round(full.height * 0.55);
+      const c = document.createElement('canvas'); const y0 = Math.round(full.height * 0.55);
       c.width = full.width; c.height = full.height - y0;
       c.getContext('2d').drawImage(full, 0, y0, full.width, c.height, 0, 0, full.width, c.height);
       let { data } = await worker.recognize(c);
-      let ok = handleText(data.text, 'fotoStatus', false);
-      if (!ok) { ({ data } = await worker.recognize(full)); ok = handleText(data.text, 'fotoStatus', false); }
+      let ok = handleText(data.text, 'fotoStatus', false, lastImg);
+      if (!ok) { ({ data } = await worker.recognize(full)); ok = handleText(data.text, 'fotoStatus', false, lastImg); }
       await worker.terminate();
-      if (!ok) { $('raw').textContent = data.text; setStatus('fotoStatus', 'No logré leer las 3 líneas. Toma la foto de frente, más cerca y sin sombras.', 'err'); }
+      if (!ok) setStatus('fotoStatus', 'No logré leer la cédula. Toma la foto de frente, más cerca y sin sombras.', 'err');
     } catch (err) {
-      setStatus('fotoStatus', 'La lectura de las 3 líneas no está disponible en esta vista. Funciona al publicar la página en un servidor propio. Mientras tanto, usa "Pegar texto".', 'err');
-    } finally { $('ocrBtn').disabled = false; }
-  });
+      setStatus('fotoStatus', 'La lectura de las 3 líneas no está disponible en esta vista. Funciona desde el link publicado.', 'err');
+    } finally { ocrBusy = false; $('ocrBtn').disabled = false; }
+  }
+  $('ocrBtn').addEventListener('click', runOCR);
 
-  /* ---------- Pistola lectora (entra como teclado) ---------- */
   let scanTimer = null;
   $('scanIn').addEventListener('input', () => {
     clearTimeout(scanTimer);
-    scanTimer = setTimeout(() => {
-      const v = $('scanIn').value; if (v.trim().length < 20) return;
-      if (handleText(v, 'scanStatus', false)) { $('scanIn').value = ''; $('scanIn').placeholder = 'Lista para la siguiente cédula…'; }
-    }, 400);
+    scanTimer = setTimeout(() => { const v = $('scanIn').value; if (v.trim().length < 20) return; if (handleText(v, 'scanStatus', false)) $('scanIn').value = ''; }, 400);
   });
-
-  /* ---------- Pegar texto ---------- */
   $('parseBtn').addEventListener('click', () => handleText($('pasteIn').value, 'pasteStatus', false));
-  $('demoMrz').addEventListener('click', () => {
-    $('pasteIn').value = CED.sampleMRZ();
-    const r = CED.parseMRZ($('pasteIn').value);
-    render(r, { ejemplo: true });
-    setStatus('pasteStatus', 'Ejemplo cargado con datos ficticios.', 'ok');
-  });
+  $('demoBtn').addEventListener('click', () => { $('pasteIn').value = CED.sampleMRZ(); renderRec(CED.parseMRZ(CED.sampleMRZ()), true); setStatus('pasteStatus', 'Ejemplo cargado con datos ficticios.', 'ok'); });
 
-  /* ---------- Cámara en vivo ---------- */
   let camReader = null;
   async function startCam() {
     setStatus('camStatus', '');
-    if (!hasZX || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('camStatus', 'Este navegador no permite la cámara en vivo. Usa la pestaña Foto.', 'err'); return;
-    }
+    if (!hasZX || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { setStatus('camStatus', 'Este navegador no permite la cámara en vivo. Usa la pestaña Foto.', 'err'); return; }
     try {
       camReader = new ZXing.BrowserMultiFormatReader(hints, 300);
       $('camStart').disabled = true; $('camStop').disabled = false;
-      setStatus('camStatus', 'Apunta al código del respaldo y mantén quieto el celular.');
-      await camReader.decodeFromConstraints({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } }, $('video'), (res) => {
-        if (res) {
-          const isQR = res.getBarcodeFormat() === ZXing.BarcodeFormat.QR_CODE;
-          if (handleText(res.getText(), 'camStatus', isQR)) stopCam();
-        }
+      setStatus('camStatus', 'Apunta al código de barras y mantén quieto el celular.');
+      await camReader.decodeFromConstraints({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } }, $('video'), res => {
+        if (res && handleText(res.getText(), 'camStatus', res.getBarcodeFormat() === ZXing.BarcodeFormat.QR_CODE)) stopCam();
       });
-    } catch (err) {
-      stopCam();
-      setStatus('camStatus', 'La cámara en vivo no está permitida en esta vista. Usa la pestaña Foto, que abre la cámara del celular, o publica la página en un servidor propio.', 'err');
-    }
+    } catch (err) { stopCam(); setStatus('camStatus', 'La cámara en vivo no está disponible aquí. Usa la pestaña Foto o abre el link publicado en Chrome.', 'err'); }
   }
-  function stopCam() {
-    if (camReader) { try { camReader.reset(); } catch (_) {} camReader = null; }
-    $('camStart').disabled = false; $('camStop').disabled = true;
-  }
+  function stopCam() { if (camReader) { try { camReader.reset(); } catch (_) {} camReader = null; } $('camStart').disabled = false; $('camStop').disabled = true; }
   $('camStart').addEventListener('click', startCam);
   $('camStop').addEventListener('click', () => { stopCam(); setStatus('camStatus', ''); });
 
-  /* ---------- Estado inicial: ejemplo ---------- */
-  render(CED.parsePDF417(CED.samplePDF417()), { ejemplo: true });
-  renderRows();
+  /* ---------- Paso 3: copia ampliada ---------- */
+  const CARD_W = 1284, CARD_H = 810; // 85.6 × 54 mm a 15 px/mm
+  function watermarkText() { return 'SOLO PARA ESTUDIO DE CRÉDITO · DISTRITEC · ' + fmtFecha(new Date()); }
+  function makeCard(img, rot) {
+    const src = drawScaled(img, 2400, rot, false);
+    const c = document.createElement('canvas'); c.width = CARD_W; c.height = CARD_H;
+    const x = c.getContext('2d');
+    const s = Math.max(CARD_W / src.width, CARD_H / src.height);
+    const w = src.width * s, h = src.height * s;
+    x.drawImage(src, (CARD_W - w) / 2, (CARD_H - h) / 2, w, h);
+    x.save(); x.translate(CARD_W / 2, CARD_H / 2); x.rotate(-0.42);
+    x.font = '700 34px Helvetica, Arial, sans-serif'; x.textAlign = 'center'; x.fillStyle = 'rgba(30,120,0,0.32)';
+    const t = watermarkText() + '     ' + watermarkText();
+    for (let i = -4; i <= 4; i++) x.fillText(t, 0, i * 120);
+    x.restore();
+    return c.toDataURL('image/jpeg', 0.86);
+  }
+  function setSide(side, img) {
+    S.src[side] = img; S.rot[side] = 0;
+    S.copia[side] = makeCard(img, 0); renderSlot(side); validate3();
+  }
+  function renderSlot(side) {
+    const slot = $('slot-' + side); const input = slot.querySelector('input');
+    slot.innerHTML = ''; slot.appendChild(input);
+    if (S.copia[side]) { slot.classList.add('has'); const im = document.createElement('img'); im.alt = 'Cédula, ' + side; im.src = S.copia[side]; slot.appendChild(im); }
+    else { slot.classList.remove('has'); const sp = document.createElement('span'); sp.textContent = 'Tocar para tomar la foto del ' + side; slot.appendChild(sp); }
+  }
+  document.querySelectorAll('input[data-side]').forEach(inp => inp.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return; e.target.value = '';
+    try { setSide(e.target.dataset.side, await loadImg(f)); setStatus('copiaStatus', ''); } catch (_) { setStatus('copiaStatus', 'No pude abrir esa imagen.', 'err'); }
+  }));
+  document.querySelectorAll('[data-rot]').forEach(b => b.addEventListener('click', () => {
+    const side = b.dataset.rot; if (!S.src[side]) return;
+    S.rot[side] = (S.rot[side] + 90) % 360; S.copia[side] = makeCard(S.src[side], S.rot[side]); renderSlot(side);
+  }));
+  function validate3() { $('go4').disabled = !(S.copia.frente && S.copia.respaldo); }
+  $('go4').addEventListener('click', () => show(4));
+
+  /* ---------- Paso 4: expediente ---------- */
+  function renderSummary() {
+    const r = S.rec; if (!r) return;
+    $('sumName').textContent = nombreCompleto(r);
+    $('sumId').textContent = 'C.C. ' + Number(r.numero).toLocaleString('es-CO') + ' · ' + (TIPOS[r.tipo] || '');
+    $('thumbs').innerHTML = '';
+    ['frente','respaldo'].forEach(s => { if (S.copia[s]) { const i = document.createElement('img'); i.src = S.copia[s]; i.alt = 'Copia ' + s; $('thumbs').appendChild(i); } });
+    const e = CED.edad(r.nacimiento);
+    const today = new Date().toISOString().slice(0,10);
+    const items = [
+      [!!S.auth, 'Autorización firmada', S.auth ? fmtFecha(S.auth.fecha) + ', ' + fmtHora(S.auth.fecha) : 'Falta la firma'],
+      [e != null && e >= 18 ? true : false, e != null && e >= 18 ? 'Mayor de edad' : 'Revisar edad', e != null ? e + ' años · nacido el ' + r.nacimiento : 'Sin fecha de nacimiento'],
+      r.tipo === 'mrz' ? [r.vence && r.vence >= today, r.vence && r.vence >= today ? 'Documento vigente' : 'Documento vencido', 'Vence el ' + (r.vence || 'sin dato')] : [true, 'Cédula amarilla', 'No tiene fecha de vencimiento'],
+      [r.confianza === 'alta' ? true : null, r.confianza === 'alta' ? 'Datos verificados' : 'Datos revisados a mano', r.confianza === 'alta' ? 'Lectura automática sin errores' : 'Confirma los datos contra la cédula'],
+      [!!(S.copia.frente && S.copia.respaldo), 'Copia ampliada al 150 %', 'Frente y respaldo con marca de agua'],
+    ];
+    if (r.ejemplo) items.push([null, 'Datos de ejemplo', 'Este expediente usa una cédula ficticia']);
+    $('checklist').innerHTML = '';
+    items.forEach(([ok, t, d]) => {
+      const li = document.createElement('li');
+      const dot = document.createElement('span'); dot.className = 'dot ' + (ok === true ? 'ok' : ok === null ? 'mid' : 'no'); dot.textContent = ok === true ? '✓' : ok === null ? '!' : '✕';
+      const tx = document.createElement('div'); tx.textContent = t; const sm = document.createElement('small'); sm.textContent = d; tx.appendChild(sm);
+      li.append(dot, tx); $('checklist').appendChild(li);
+    });
+    setStatus('sumStatus', '');
+    prepShare();
+  }
+
+  async function logoForPdf() {
+    const l = $('logo');
+    if (!l || !l.naturalWidth) return null;
+    try { const c = document.createElement('canvas'); c.width = l.naturalWidth; c.height = l.naturalHeight; c.getContext('2d').drawImage(l, 0, 0); return { url: c.toDataURL('image/png'), r: l.naturalWidth / l.naturalHeight }; } catch (e) { return null; }
+  }
+
+  async function buildPdf() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    const r = S.rec, now = new Date(), W = 215.9;
+    const logo = await logoForPdf();
+    const head = title => {
+      if (logo) doc.addImage(logo.url, 'PNG', 12, 5, 12 * logo.r, 12);
+      else { doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(20,20,20); doc.text('Distritec', 12, 14); }
+      doc.setFillColor(77, 204, 0); doc.rect(0, 20, W, 1.2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(44, 122, 0); doc.text(title.toUpperCase(), W - 12, 13, { align: 'right' });
+    };
+    const foot = () => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(110,110,110);
+      doc.text('Asesor: ' + S.who.asesor + '  ·  Sede: ' + S.who.sede + '  ·  ' + fmtFecha(now) + ' ' + fmtHora(now) + '  ·  Uso exclusivo para estudio de crédito.', W / 2, 271, { align: 'center' });
+    };
+    // Página 1: copia ampliada al 150 %
+    head('Copia de documento de identidad');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
+    doc.text(nombreCompleto(r) + '  ·  C.C. ' + r.numero, W / 2, 30, { align: 'center' });
+    const cw = 128.4, ch = 81, x = (W - cw) / 2;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(110,110,110);
+    doc.text('FRENTE · AMPLIADA AL 150 %', x, 40); doc.addImage(S.copia.frente, 'JPEG', x, 42, cw, ch);
+    doc.text('RESPALDO · AMPLIADA AL 150 %', x, 136); doc.addImage(S.copia.respaldo, 'JPEG', x, 138, cw, ch);
+    doc.setDrawColor(200,200,200); doc.rect(x, 42, cw, ch); doc.rect(x, 138, cw, ch);
+    foot();
+    // Página 2: ficha + autorización
+    doc.addPage(); head('Ficha del cliente');
+    let y = 32;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(20,20,20); doc.text(nombreCompleto(r), 16, y);
+    y += 7; doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(90,90,90); doc.text('C.C. ' + r.numero + '  ·  ' + (TIPOS[r.tipo] || ''), 16, y);
+    y += 10;
+    const e = CED.edad(r.nacimiento);
+    const rows = [
+      ['Primer apellido', r.apellido1], ['Segundo apellido', r.apellido2], ['Primer nombre', r.nombre1], ['Segundo nombre', r.nombre2],
+      ['Fecha de nacimiento', r.nacimiento], ['Edad', e != null ? e + ' años' : ''], ['Sexo', r.sexo],
+    ];
+    if (r.tipo === 'mrz') rows.push(['Vencimiento del documento', r.vence]);
+    rows.push(['Celular', $('celIn').value.trim()], ['Correo', $('mailIn').value.trim()]);
+    rows.forEach(([k, v], i) => {
+      if (i % 2 === 0) { doc.setFillColor(242,246,239); doc.rect(14, y - 5, W - 28, 8, 'F'); }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100,100,100); doc.text(k.toUpperCase(), 18, y);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(20,20,20); doc.text(String(v || '—'), 85, y);
+      y += 8;
+    });
+    y += 8;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20,20,20); doc.text('Autorización de tratamiento de datos', 16, y);
+    y += 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(50,50,50);
+    const legal = Array.from($('legalText').querySelectorAll('p')).map(p => p.textContent).join('\n\n');
+    const lines = doc.splitTextToSize(legal, W - 32); doc.text(lines, 16, y); y += lines.length * 4.4 + 6;
+    if (S.auth) {
+      doc.addImage(S.auth.firma, 'PNG', 16, y, 70, 70 * (sig.height / sig.width));
+      y += 70 * (sig.height / sig.width) + 2;
+      doc.setFontSize(9); doc.setTextColor(90,90,90);
+      doc.text('Firma del cliente · ' + fmtFecha(S.auth.fecha) + ' ' + fmtHora(S.auth.fecha), 16, y + 5);
+    }
+    foot();
+    return doc.output('blob');
+  }
+  const fileName = () => 'Expediente_CC' + S.rec.numero + '_' + todayKey() + '.pdf';
+
+  async function savePdf(blob) {
+    const name = fileName();
+    if (window.claude && typeof window.claude.use === 'function') {
+      const dl = await window.claude.use('downloads');
+      if (dl) { await dl.save({ filename: name, data: blob }); return true; }
+      throw { code: 'unavailable' };
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    return true;
+  }
+  let doneOnce = false;
+  function markDone() { if (!doneOnce && !S.rec.ejemplo) { doneOnce = true; bumpCounter(); } }
+  $('pdfBtn').addEventListener('click', async () => {
+    if (!window.jspdf) { setStatus('sumStatus', 'No cargó el generador de PDF. Revisa la conexión y recarga.', 'err'); return; }
+    $('pdfBtn').disabled = true; setStatus('sumStatus', 'Generando expediente…');
+    try { await savePdf(await buildPdf()); setStatus('sumStatus', 'Expediente descargado: ' + fileName(), 'ok'); markDone(); }
+    catch (e) { setStatus('sumStatus', e && e.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí. Desde el link publicado sí funciona.', 'err'); }
+    finally { $('pdfBtn').disabled = false; }
+  });
+
+  function prepShare() {
+    let can = false;
+    try { can = !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] })); } catch (e) {}
+    $('shareBtn').hidden = !can;
+  }
+  $('shareBtn').addEventListener('click', async () => {
+    try {
+      const file = new File([await buildPdf()], fileName(), { type: 'application/pdf' });
+      await navigator.share({ files: [file], title: 'Expediente ' + nombreCompleto(S.rec), text: 'Expediente de crédito · C.C. ' + S.rec.numero + ' · ' + S.who.sede });
+      setStatus('sumStatus', 'Expediente compartido.', 'ok'); markDone();
+    } catch (e) { if (e && e.name !== 'AbortError') setStatus('sumStatus', 'No se pudo compartir desde aquí. Descarga el PDF y envíalo.', 'err'); }
+  });
+
+  $('copyBtn').addEventListener('click', async () => {
+    const r = S.rec, e = CED.edad(r.nacimiento);
+    const t = ['Cédula: ' + r.numero, 'Nombres: ' + [r.nombre1, r.nombre2].filter(Boolean).join(' '), 'Apellidos: ' + [r.apellido1, r.apellido2].filter(Boolean).join(' '),
+      'Fecha de nacimiento: ' + r.nacimiento + (e != null ? ' (' + e + ' años)' : ''), 'Sexo: ' + r.sexo,
+      $('celIn').value.trim() ? 'Celular: ' + $('celIn').value.trim() : '', $('mailIn').value.trim() ? 'Correo: ' + $('mailIn').value.trim() : ''].filter(Boolean).join('\n');
+    try { await navigator.clipboard.writeText(t); setStatus('sumStatus', 'Datos copiados. Pégalos en la plataforma de crédito.', 'ok'); }
+    catch (_) { const b = $('copybox'); b.value = t; b.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (__) {} setStatus('sumStatus', ok ? 'Datos copiados.' : 'No se pudo copiar automáticamente.', ok ? 'ok' : 'err'); }
+  });
+
+  $('newBtn').addEventListener('click', () => {
+    S.auth = null; S.rec = null; S.copia = { frente: null, respaldo: null }; S.src = { frente: null, respaldo: null }; S.rot = { frente: 0, respaldo: 0 };
+    lastImg = null; doneOnce = false;
+    $('authChk').checked = false; signed = false; checkAuth();
+    $('idsheet').hidden = true; FIELDS.forEach(k => { const el = $('f-' + k); if (el) el.value = ''; });
+    ['fotoStatus','scanStatus','pasteStatus','camStatus','copiaStatus','sumStatus'].forEach(id => setStatus(id, ''));
+    $('pasteIn').value = ''; $('scanIn').value = ''; $('celIn').value = ''; $('mailIn').value = ''; $('ocrBtn').hidden = true;
+    renderSlot('frente'); renderSlot('respaldo'); validate2(); validate3();
+    show(1);
+  });
+
+  /* ---------- Inicio ---------- */
+  renderWho(); checkAuth();
+  show(S.who ? 1 : 0);
 })();
 </script>
